@@ -59,6 +59,9 @@ class StreamingThread(threading.Thread):
 
     def run(self):
         logging.debug('Running.')
+        global keyword_monitor
+        keywords = [str(keyword_monitor[kw]) for kw in keyword_monitor]
+        logging.debug('Tracking: {}'.format(keywords))
         while True:
             try:
                 ok = stream.filter(track=keywords)
@@ -254,7 +257,7 @@ class KWManagerThread(threading.Thread):
         for i in range(0, n_items):
             try:
                 items.append(q.get_nowait())
-            except Empty, e:
+            except Empty:
                 break
         return items 
 
@@ -344,6 +347,7 @@ if __name__ == "__main__":
 
     # Seed input
     seed = Keyword('merkel', user_word=True)
+    keyword_monitor[str(seed)] = seed
 
     # Set up logging
     logging.basicConfig(level=logging.DEBUG,
