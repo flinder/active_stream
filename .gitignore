@@ -1,4 +1,4 @@
-twitter_credentials.py
+credentials.py
 *.pyc
 __pycache__/
 *.log
