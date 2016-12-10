@@ -8,11 +8,11 @@ class Annotator(threading.Thread):
     Handles manual annotations.
     '''
 
-    def __init__(self, queue, group=None, target=None, name=None, args=(), 
+    def __init__(self, queues, group=None, target=None, name=None, args=(), 
             kwargs=None, verbose=None):
         logging.debug('Initializing Annotator...')
         super(Annotator, self).__init__(name=name)
-        self.queue = queue
+        self.queues = queues
         logging.debug('Success.')
 
     def run(self):
@@ -22,8 +22,8 @@ class Annotator(threading.Thread):
 
         logging.debug('Running.')
         while True:
-            if not self.queue.empty():
-                status = self.queue.get()
+            if not self.queues['annotator'].empty():
+                status = self.queues['annotator'].get()
                 while True:
                     print(status['text'])
                     annotation = input('Relevant? (y/n)')
@@ -39,6 +39,6 @@ class Annotator(threading.Thread):
                         break
                     else:
                         continue
-                dummy_database.append(status)
+                self.queues['database'].append(status)
 
 

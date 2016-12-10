@@ -29,13 +29,14 @@ if __name__ == "__main__":
     RUN_TRAINER = False
 
     # Set up data structures
-    text_processing_queue = queue.Queue(BUF_SIZE)
-    classifier_queue = queue.Queue(BUF_SIZE)
-    annotation_queue = queue.Queue(BUF_SIZE)
-    model_queue = queue.Queue(1)
-    kw_queue = queue.Queue(BUF_SIZE)
+    qs = {'text_processor': queue.Queue(BUF_SIZE),
+          'classifier': queue.Queue(BUF_SIZE),
+          'annotator': queue.Queue(BUF_SIZE),
+          'model': queue.Queue(1),
+          'database': []}
+    cntrl = {'ONE_POSITIVE': False, 'ONE_NEGATIVE': False, 'RUN_TRAINER': False}
+
     keyword_monitor = {}
-    dummy_database = []
 
     # Seed input
     seed = Keyword('merkel', user_word=True)
@@ -48,13 +49,12 @@ if __name__ == "__main__":
     
     # Initialize Threads
     streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
-                        credentials=credentials['coll_1'])
-    text_processor = TextProcessor(name='Text Processor',
-                                   queue=text_processing_queue)
-    classifier = Classifier(name='Classifier', queue=classifier_queue)
-    annotator = Annotator(name='Annotator', queue=annotation_queue)
-    trainer = Trainer(name='Trainer', clf=LogisticRegression(),
-                      queue=model_queue)
+                        credentials=credentials['coll_1'], queues=qs)
+    text_processor = TextProcessor(name='Text Processor', queues=qs)
+    classifier = Classifier(name='Classifier', queues=qs)
+   
+    annotator = Annotator(name='Annotator', queues=qs)
+    trainer = Trainer(name='Trainer', clf=LogisticRegression(), queues=qs)
     
     # Start Threads
     try:

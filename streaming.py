@@ -5,13 +5,17 @@ import logging
 
 class Listener(tweepy.StreamListener):
 
+    def __init__(self, queues):
+        super(Listener, self).__init__()
+        self.queues = queues
+
     def on_status(self, status):
         status = self.filter_status(status) 
         if status is None:
             return True
         else:
             status = self.amend_status(status)
-            text_processor.queue.put(status)
+            self.queues['classifier'].put(status)
             return True
 
     def on_error(self, status):
@@ -47,8 +51,8 @@ class Streamer(threading.Thread):
     keyword_monitor: dict,
     credentials: dict,
     '''
-    def __init__(self, keyword_monitor, credentials, group=None, target=None, 
-            name=None, args=(), kwargs=None, verbose=None):
+    def __init__(self, keyword_monitor, credentials, queues, group=None, 
+            target=None, name=None, args=(), kwargs=None, verbose=None):
         logging.debug('Initializing Streamer...')
         super(Streamer, self).__init__(name=name)
         self.keyword_monitor = keyword_monitor
@@ -57,7 +61,8 @@ class Streamer(threading.Thread):
                                    credentials['consumer_secret'])
         auth.set_access_token(credentials['access_token'],
                               credentials['access_token_secret'])
-        self.stream = tweepy.Stream(auth=auth, listener=Listener())
+        self.stream = tweepy.Stream(auth=auth,
+                                    listener=Listener(queues))
         logging.debug('Success.')
 
     def run(self):
