@@ -1,7 +1,7 @@
 import threading
 import logging
 
-
+import shared
 
 class Annotator(threading.Thread):
     '''
@@ -16,9 +16,6 @@ class Annotator(threading.Thread):
         logging.debug('Success.')
 
     def run(self):
-        global ONE_POSITIVE
-        global ONE_NEGATIVE
-        global RUN_TRAINER
 
         logging.debug('Running.')
         while True:
@@ -29,16 +26,19 @@ class Annotator(threading.Thread):
                     annotation = input('Relevant? (y/n)')
                     if annotation == 'y':
                         status['manual_relevant'] = True
-                        ONE_POSITIVE = True
-                        RUN_TRAINER = True 
+                        shared.ONE_POSITIVE = True
+                        shared.RUN_TRAINER = True 
                         break
                     elif annotation == 'n':
                         status['manual_relevant'] = False
-                        ONE_NEGATIVE = True
-                        RUN_TRAINER = True
+                        shared.ONE_NEGATIVE = True
+                        shared.RUN_TRAINER = True
                         break
                     else:
                         continue
-                self.queues['database'].append(status)
+                shared.database_lock.acquire()
+                shared.database.append(status)
+                shared.database_lock.notify_all()
+                shared.database_lock.release()
 
 

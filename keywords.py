@@ -1,6 +1,8 @@
 import threading
 import logging
 
+from shared import ONE_POSITIVE, ONE_NEGATIVE, RUN_TRAINER, database, database_lock
+
 class KWManagerThread(threading.Thread):
     '''
     Takes batches of incoming statuses and suggests new keywords based on

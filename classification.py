@@ -1,5 +1,8 @@
 import threading
 import logging
+import numpy as np
+
+import shared
 
 class Classifier(threading.Thread):
     '''
@@ -16,6 +19,7 @@ class Classifier(threading.Thread):
         logging.debug('Success')
 
     def run(self):
+
         logging.debug('Running.')
         while True:
             if not self.queues['classifier'].empty():
@@ -23,7 +27,11 @@ class Classifier(threading.Thread):
                 status = self.classify_status(status)
                 logging.debug('Received tweet. Probability relevant: {}'.format(
                     status['probability_relevant']))
-                self.queues['database'].append(status)
+                #self.queues['database'].put(status)
+                shared.database_lock.acquire()
+                shared.database.append(status)
+                shared.database_lock.notify_all()
+                shared.database_lock.release()
     
     def classify_status(self, status):
 
@@ -66,15 +74,18 @@ class Trainer(threading.Thread):
         logging.debug('Success')
 
     def train_model(self):
-        global RUN_TRAINER
-
-        # Transform data
-        y = []
+        # Transform data y = []
         X = []
-        for d in self.queus['database']:
+        y = []
+        shared.database_lock.acquire()
+        for d in shared.database:
             if d['manual_relevant'] is not None:
                 X.append(d['embedding'])
                 y.append(d['manual_relevant'])
+
+        shared.database_lock.notify_all()
+        shared.database_lock.release()
+
         X = np.array(X)
         y = np.array(y)
         
@@ -83,19 +94,18 @@ class Trainer(threading.Thread):
 
         # Pass model to classifier
         self.queues['model'].put(self.clf)
-        RUN_TRAINER = False
+        shared.RUN_TRAINER = False
         
     def run(self):
-        global RUN_TRAINER
 
         logging.debug('Running.')
         # Wait for first positive / negative annotation
-        while not ONE_POSITIVE or not ONE_NEGATIVE:
+        while not shared.ONE_POSITIVE or not shared.ONE_NEGATIVE:
             pass
 
         # After that run everytime prompted by the annotator thread
         while True:
-            if RUN_TRAINER:
+            if shared.RUN_TRAINER:
                 logging.debug('Retraining Model...')
                 self.train_model()
                 logging.debug('Trained Model.')

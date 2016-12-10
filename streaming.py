@@ -2,20 +2,21 @@ import tweepy
 import threading
 import logging
 
-
 class Listener(tweepy.StreamListener):
+
 
     def __init__(self, queues):
         super(Listener, self).__init__()
         self.queues = queues
 
     def on_status(self, status):
+        logging.debug('Received status')
         status = self.filter_status(status) 
         if status is None:
             return True
         else:
             status = self.amend_status(status)
-            self.queues['classifier'].put(status)
+            self.queues['text_processor'].put(status)
             return True
 
     def on_error(self, status):

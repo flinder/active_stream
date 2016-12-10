@@ -1,13 +1,12 @@
 import tweepy
 import queue
 import threading
-import time
+import time 
 import numpy as np
 import spacy
 import logging
 import sys
-
-from pprint import pprint
+from pprint import pprint 
 from sklearn.linear_model import LogisticRegression
 
 # Custom imports
@@ -17,25 +16,19 @@ from annotation import Annotator
 from credentials import credentials
 from text_processing import TextProcessor
 from keywords import Keyword
+import shared
+
 
 if __name__ == "__main__":
 
     # Set global constants 
-    BUF_SIZE = 1000
+    BUF_SIZE = 100
 
-    # Set global variables
-    ONE_POSITIVE = False
-    ONE_NEGATIVE = False
-    RUN_TRAINER = False
-
-    # Set up data structures
     qs = {'text_processor': queue.Queue(BUF_SIZE),
           'classifier': queue.Queue(BUF_SIZE),
           'annotator': queue.Queue(BUF_SIZE),
-          'model': queue.Queue(1),
-          'database': []}
-    cntrl = {'ONE_POSITIVE': False, 'ONE_NEGATIVE': False, 'RUN_TRAINER': False}
-
+          'model': queue.Queue(1)
+          }
     keyword_monitor = {}
 
     # Seed input

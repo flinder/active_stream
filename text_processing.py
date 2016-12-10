@@ -2,6 +2,7 @@ import threading
 import logging
 import spacy
 
+
 class TextProcessor(threading.Thread):
     '''
     Ingests status text, updates global vocabulary and document frequency
@@ -25,9 +26,9 @@ class TextProcessor(threading.Thread):
     def run(self):
         logging.debug('Running.')
         while True:
-            if not self.queues['text_processing'].empty():
+            if not self.queues['text_processor'].empty():
                 logging.debug('Received tweet')
-                status = self.queues['text_processing'].get()
+                status = self.queues['text_processor'].get()
                 status = self.process_text(status)
+                logging.debug('Processed tweet')
                 self.queues['classifier'].put(status)
- 
