@@ -7,18 +7,19 @@ class Classifier(threading.Thread):
     trained by TrainerThread.
     '''
 
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None,
-            verbose=None):
+    def __init__(self, queue, group=None, target=None, name=None, args=(), 
+            kwargs=None, verbose=None):
         logging.debug('Initializing Classifier...')
         super(Classifier, self).__init__(name=name)
         self.clf = None
+        self.queue = queue
         logging.debug('Success')
 
     def run(self):
         logging.debug('Running.')
         while True:
-            if not classifier_queue.empty():
-                status = classifier_queue.get()
+            if not self.queue.empty():
+                status = self.queue.get()
                 status = self.classify_status(status)
                 logging.debug('Received tweet. Probability relevant: {}'.format(
                     status['probability_relevant']))
@@ -26,12 +27,12 @@ class Classifier(threading.Thread):
     
     def classify_status(self, status):
 
-        if self.clf is None and model_queue.empty():
+        if self.clf is None and trainer.queue.empty():
             prob = 0.5
         else:
-            if not model_queue.empty():
+            if not trainer.queue.empty():
                 logging.debug('Acquiring Model')
-                self.clf = model_queue.get()
+                self.clf = trainer.queue.get()
             X = status['embedding'].reshape(1, -1)
             pred_prob = self.clf.predict_proba(X) 
             prob = pred_prob[0][1]
@@ -43,10 +44,10 @@ class Classifier(threading.Thread):
             status['classifier_relevant'] = True
         # Send uncertain statuses to annotation module
         if prob > 0.4 and prob < 0.6:
-           annotation_queue.put(status) 
+           annotator.queue.put(status) 
         
         # Send all tweets to KWmanager
-        kw_queue.put(status)
+        #queue.put(status)
 
         return status
 
@@ -56,11 +57,12 @@ class Trainer(threading.Thread):
     (Re)Trains classification model.
     '''
 
-    def __init__(self, clf, group=None, target=None, name=None, args=(), 
+    def __init__(self, clf, queue, group=None, target=None, name=None, args=(), 
             kwargs=None, verbose=None):
         logging.debug('Initializing Trainer...')
         super(Trainer, self).__init__(name=name)
         self.clf = clf
+        self.queue = queue
         logging.debug('Success')
 
     def train_model(self):
@@ -80,7 +82,7 @@ class Trainer(threading.Thread):
         self.clf.fit(X, y) 
 
         # Pass model to classifier
-        model_queue.put(self.clf)
+        self.queue.put(self.clf)
         RUN_TRAINER = False
         
     def run(self):

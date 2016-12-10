@@ -20,16 +20,6 @@ from keywords import Keyword
 
 if __name__ == "__main__":
 
-    # Get authentication data
-    consumer_key = credentials['coll_1']['consumer_key']
-    consumer_secret = credentials['coll_1']['consumer_secret']
-    access_token = credentials['coll_1']['access_token']
-    access_token_secret = credentials['coll_1']['access_token_secret']
-    
-    # Set up authentication
-    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-    auth.set_access_token(access_token, access_token_secret)
-
     # Set global constants 
     BUF_SIZE = 1000
 
@@ -47,10 +37,6 @@ if __name__ == "__main__":
     keyword_monitor = {}
     dummy_database = []
 
-    # Set up stream
-    listener = Listener()
-    stream = tweepy.Stream(auth=auth, listener=listener)
-
     # Seed input
     seed = Keyword('merkel', user_word=True)
     keyword_monitor[str(seed)] = seed
@@ -61,17 +47,27 @@ if __name__ == "__main__":
                         filename='debug.log')
     
     # Initialize Threads
-    streamer = Streamer(name='Streamer')
-    text_processor = TextProcessor(name='Text Processor')
-    classifier = Classifier(name='Classifier')
-    annotator = Annotator(name='Annotator')
-    trainer = Trainer(name='Trainer', clf=LogisticRegression())
+    streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
+                        credentials=credentials['coll_1'])
+    text_processor = TextProcessor(name='Text Processor',
+                                   queue=text_processing_queue)
+    classifier = Classifier(name='Classifier', queue=classifier_queue)
+    annotator = Annotator(name='Annotator', queue=annotation_queue)
+    trainer = Trainer(name='Trainer', clf=LogisticRegression(),
+                      queue=model_queue)
     
     # Start Threads
-    streamer.start()
-    text_processor.start()
-    classifier.start()
-    annotator.start()
-    trainer.start()
+    try:
+        streamer.start()
+        text_processor.start()
+        classifier.start()
+        annotator.start()
+        trainer.start()
+    except KeyboardInterrupt:
+        streamer.stop()
+        text_processor.stop()
+        classifier.stop()
+        annotator.stop()
+        trainer.stop()
 
 

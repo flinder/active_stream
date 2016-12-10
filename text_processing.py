@@ -9,11 +9,12 @@ class TextProcessor(threading.Thread):
     representation to status object.
     '''
 
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None,
-            verbose=None):
+    def __init__(self, queue, group=None, target=None, name=None, args=(), 
+            kwargs=None, verbose=None):
         logging.debug('Initializing Text Processor...')
         super(TextProcessor, self).__init__(name=name)
         self.parser = spacy.load('en')
+        self.queue = queue
         logging.debug('Success.')
 
     def process_text(self, status):
@@ -24,9 +25,9 @@ class TextProcessor(threading.Thread):
     def run(self):
         logging.debug('Running.')
         while True:
-            if not text_processing_queue.empty():
+            if not self.queue.empty():
                 logging.debug('Received tweet')
-                status = text_processing_queue.get()
+                status = self.queue.get()
                 status = self.process_text(status)
-                classifier_queue.put(status)
+                classifier.queue.put(status)
  

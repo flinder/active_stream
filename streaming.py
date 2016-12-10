@@ -11,7 +11,7 @@ class Listener(tweepy.StreamListener):
             return True
         else:
             status = self.amend_status(status)
-            text_processing_queue.put(status)
+            text_processor.queue.put(status)
             return True
 
     def on_error(self, status):
@@ -41,23 +41,35 @@ class Streamer(threading.Thread):
     '''
     Connects to Twitter API and directs incoming statuses to the respective 
     queues.
+
+    Arguments:
+    ---------
+    keyword_monitor: dict,
+    credentials: dict,
     '''
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs=None,
-            verbose=None):
+    def __init__(self, keyword_monitor, credentials, group=None, target=None, 
+            name=None, args=(), kwargs=None, verbose=None):
         logging.debug('Initializing Streamer...')
         super(Streamer, self).__init__(name=name)
+        self.keyword_monitor = keyword_monitor
+        # Set up twitter authentication
+        auth = tweepy.OAuthHandler(credentials['consumer_key'], 
+                                   credentials['consumer_secret'])
+        auth.set_access_token(credentials['access_token'],
+                              credentials['access_token_secret'])
+        self.stream = tweepy.Stream(auth=auth, listener=Listener())
         logging.debug('Success.')
 
     def run(self):
         logging.debug('Running.')
-        global keyword_monitor
-        keywords = [str(keyword_monitor[kw]) for kw in keyword_monitor]
+        self.keyword_monitor
+        keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
         logging.debug('Tracking: {}'.format(keywords))
         while True:
             try:
-                ok = stream.filter(track=keywords)
+                ok = self.stream.filter(track=keywords)
             except KeyboardInterrupt:
-                stream.disconnect()
+                self.stream.disconnect()
                 break
 
 
