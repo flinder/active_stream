@@ -1,12 +1,7 @@
-import tweepy
+# Script to run the active_stream application. 
+
 import queue
-import threading
-import time 
-import numpy as np
-import spacy
 import logging
-import sys
-from pprint import pprint 
 from sklearn.linear_model import LogisticRegression
 
 # Custom imports
