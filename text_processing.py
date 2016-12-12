@@ -8,10 +8,14 @@ class TextProcessor(threading.Thread):
     Ingests status text, updates global vocabulary and document frequency
     counts. Embedds status text in word2vec space and appends embedded
     representation to status object.
+
+    Arguments:
+    --------------- 
+    queues, dict containing all queues to pass data between threads.
+    name, str, name of the thread.
     '''
 
-    def __init__(self, queues, group=None, target=None, name=None, args=(), 
-            kwargs=None, verbose=None):
+    def __init__(self, queues, name=None):
         logging.debug('Initializing Text Processor...')
         super(TextProcessor, self).__init__(name=name)
         self.parser = spacy.load('en')
@@ -19,6 +23,15 @@ class TextProcessor(threading.Thread):
         logging.debug('Success.')
 
     def process_text(self, status):
+        '''
+        Tokenize and embedd status text
+
+        See the spacy documentation on details about the embedding.
+
+        Arguments:
+        ---------------   
+        status:
+        '''
         doc = self.parser.tokenizer(status['text'])
         status['embedding'] = doc.vector
         return status
