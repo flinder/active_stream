@@ -1,4 +1,5 @@
-# Script to run the active_stream application. 
+# Script to run the active_stream application. Set all parameters in 'config'
+# section
 
 import queue
 import logging
@@ -15,20 +16,28 @@ import shared
 
 
 if __name__ == "__main__":
-
-    # Set global constants 
-    BUF_SIZE = 100
-
+   
+    # =========================================================================== 
+    # Config
+    # =========================================================================== 
+    no_api = True                 # Set to True if no API connection available
+                                  # in this case fake 'tweets' are generated
+    keywords = ['merkel']         # Seed keywords
+    BUF_SIZE = 100                # Buffer size of queues
+    # =========================================================================== 
+    
+    # Set up queues
     qs = {'text_processor': queue.Queue(BUF_SIZE),
           'classifier': queue.Queue(BUF_SIZE),
           'annotator': queue.Queue(BUF_SIZE),
           'model': queue.Queue(1)
           }
-    keyword_monitor = {}
 
-    # Seed input
-    seed = Keyword('merkel', user_word=True)
-    keyword_monitor[str(seed)] = seed
+    # Process seed input
+    keyword_monitor = {}
+    for kw in keywords:
+        seed = Keyword('merkel', user_word=True)
+        keyword_monitor[str(seed)] = seed
 
     # Set up logging
     logging.basicConfig(level=logging.DEBUG,
@@ -38,7 +47,7 @@ if __name__ == "__main__":
     # Initialize Threads
     streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
                         credentials=credentials['coll_1'], queues=qs, 
-                        offline=True)
+                        offline=no_api)
     text_processor = TextProcessor(name='Text Processor', queues=qs)
     classifier = Classifier(name='Classifier', queues=qs)
    
@@ -46,17 +55,8 @@ if __name__ == "__main__":
     trainer = Trainer(name='Trainer', clf=LogisticRegression(), queues=qs)
     
     # Start Threads
-    try:
-        streamer.start()
-        text_processor.start()
-        classifier.start()
-        annotator.start()
-        trainer.start()
-    except KeyboardInterrupt:
-        streamer.stop()
-        text_processor.stop()
-        classifier.stop()
-        annotator.stop()
-        trainer.stop()
-
-
+    streamer.start()
+    text_processor.start()
+    classifier.start()
+    annotator.start()
+    trainer.start()
