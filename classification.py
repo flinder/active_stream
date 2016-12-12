@@ -19,9 +19,10 @@ class Classifier(threading.Thread):
 
     Arguments:
     --------------- 
-    queues: dict containing queues to pass data between threads
-    uncertain_low: Lower bound for annotation threshold
-    uncertain_high: Upper bound for annotation threshold
+    queues: dict containing queues to pass data between threads.
+    uncertain_low: Lower bound for annotation threshold.
+    uncertain_high: Upper bound for annotation threshold.
+    name: str, name of the thread.
     '''
 
     def __init__(self, queues, uncertain_low=0.4, uncertain_high=0.6, name=None):

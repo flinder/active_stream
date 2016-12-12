@@ -61,9 +61,10 @@ class Streamer(threading.Thread):
     --------------
     keyword_monitor: dict, containing all keywords as `Keyword()` objects
     credentials: dict, containing Twitter API credentials.
-    queues: dict containing all queues to pass data between Threads
+    queues: dict containing all queues to pass data between Threads.
     offline: bool, if set to true, no tweets from the API are grabbed but fake
-        tweets are vreated instead. For testing and developing offline
+        tweets are vreated instead. For testing and developing offline.
+    name: str, name of the thread.
     '''
     def __init__(self, keyword_monitor, credentials, queues, name=None, 
                  offline=False):

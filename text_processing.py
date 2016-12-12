@@ -11,8 +11,8 @@ class TextProcessor(threading.Thread):
 
     Arguments:
     --------------- 
-    queues, dict containing all queues to pass data between threads.
-    name, str, name of the thread.
+    queues: dict containing all queues to pass data between treads.
+    name: str, name of the thread.
     '''
 
     def __init__(self, queues, name=None):

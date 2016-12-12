@@ -16,7 +16,8 @@ class Annotator(threading.Thread):
     Arguments:
     ---------------  
     queues: dict containing queues to pass data between threads. Each queue must
-        be of class `queue.Queue`
+        be of class `queue.Queue`.
+    name: str, name of the thread.
     
     Methods:
     ---------------  
