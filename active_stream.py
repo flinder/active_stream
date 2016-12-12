@@ -42,7 +42,8 @@ if __name__ == "__main__":
     
     # Initialize Threads
     streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
-                        credentials=credentials['coll_1'], queues=qs)
+                        credentials=credentials['coll_1'], queues=qs, 
+                        offline=True)
     text_processor = TextProcessor(name='Text Processor', queues=qs)
     classifier = Classifier(name='Classifier', queues=qs)
    

@@ -1,6 +1,11 @@
 import tweepy
 import threading
 import logging
+import time
+
+import numpy as np
+
+
 
 class Listener(tweepy.StreamListener):
 
@@ -51,32 +56,65 @@ class Streamer(threading.Thread):
     ---------
     keyword_monitor: dict,
     credentials: dict,
+    queues: dict,
+    offline: bool
     '''
     def __init__(self, keyword_monitor, credentials, queues, group=None, 
-            target=None, name=None, args=(), kwargs=None, verbose=None):
-        logging.debug('Initializing Streamer...')
-        super(Streamer, self).__init__(name=name)
-        self.keyword_monitor = keyword_monitor
-        # Set up twitter authentication
-        auth = tweepy.OAuthHandler(credentials['consumer_key'], 
-                                   credentials['consumer_secret'])
-        auth.set_access_token(credentials['access_token'],
-                              credentials['access_token_secret'])
-        self.stream = tweepy.Stream(auth=auth,
-                                    listener=Listener(queues))
-        logging.debug('Success.')
+            target=None, name=None, args=(), kwargs=None, verbose=None, 
+            offline=False):
 
+        logging.debug('Initializing Streamer...')
+
+        super(Streamer, self).__init__(name=name)
+
+        self.offline = offline
+        self.queues = queues
+
+        if not self.offline:
+            self.keyword_monitor = keyword_monitor
+            # Set up twitter authentication
+            auth = tweepy.OAuthHandler(credentials['consumer_key'], 
+                                       credentials['consumer_secret'])
+            auth.set_access_token(credentials['access_token'],
+                                  credentials['access_token_secret'])
+            self.stream = tweepy.Stream(auth=auth,
+                                        listener=Listener(queues))
+        else:
+            # Get some random text to create tweets when not connected to API
+            with open('text.txt') as infile:
+                text = infile.read().split('\n\n')
+                text = [t.replace('\n', ' ') for t in text]
+            self.text = text
+                
+
+        logging.debug('Success.')
     def run(self):
         logging.debug('Running.')
-        self.keyword_monitor
-        keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
-        logging.debug('Tracking: {}'.format(keywords))
+        if not self.offline:
+            keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
+            logging.debug('Tracking: {}'.format(keywords))
         while True:
-            try:
-                ok = self.stream.filter(track=keywords)
-            except KeyboardInterrupt:
-                self.stream.disconnect()
-                break
+            if not self.offline:
+                try:
+                    ok = self.stream.filter(track=keywords)
+                except KeyboardInterrupt:
+                    self.stream.disconnect()
+                    break
+            else:
+                ok = self.generate_tweet()
+                time.sleep(np.random.uniform(0, 10, 1))
 
+
+    def generate_tweet(self):
+        i = np.random.choice(len(self.text), 1)        
+        t = self.text[i]
+        if len(t) > 144:
+            t = t[:144]
+        status = {'text': t}
+        status['classifier_relevant'] = None
+        status['manual_relevant'] = None
+        self.queues['text_processor'].put(status)
+        logging.debug('Created Random Tweet')
+        return True
 
 
