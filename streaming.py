@@ -8,7 +8,12 @@ import numpy as np
 
 
 class Listener(tweepy.StreamListener):
+    '''
+    Tweepy stream listener
 
+    Grabs statuses from the Twitter streaming API, adds fields required for the
+    application, filters irrelevant ones and passes them to the text processor.
+    '''
 
     def __init__(self, queues):
         super(Listener, self).__init__()
@@ -53,15 +58,15 @@ class Streamer(threading.Thread):
     queues.
 
     Arguments:
-    ---------
-    keyword_monitor: dict,
-    credentials: dict,
-    queues: dict,
-    offline: bool
+    --------------
+    keyword_monitor: dict, containing all keywords as `Keyword()` objects
+    credentials: dict, containing Twitter API credentials.
+    queues: dict containing all queues to pass data between Threads
+    offline: bool, if set to true, no tweets from the API are grabbed but fake
+        tweets are vreated instead. For testing and developing offline
     '''
-    def __init__(self, keyword_monitor, credentials, queues, group=None, 
-            target=None, name=None, args=(), kwargs=None, verbose=None, 
-            offline=False):
+    def __init__(self, keyword_monitor, credentials, queues, name=None, 
+                 offline=False):
 
         logging.debug('Initializing Streamer...')
 
@@ -86,8 +91,9 @@ class Streamer(threading.Thread):
                 text = [t.replace('\n', ' ') for t in text]
             self.text = text
                 
-
         logging.debug('Success.')
+
+
     def run(self):
         logging.debug('Running.')
         if not self.offline:
@@ -106,6 +112,9 @@ class Streamer(threading.Thread):
 
 
     def generate_tweet(self):
+        '''
+        Generate a test tweet.
+        '''
         i = np.random.choice(len(self.text), 1)        
         t = self.text[i]
         if len(t) > 144:
