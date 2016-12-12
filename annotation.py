@@ -6,10 +6,25 @@ import shared
 class Annotator(threading.Thread):
     '''
     Handles manual annotations.
+
+    Takes statuses from queues['annotator'], presents and presents them to the
+    user. Once user input is received updates `ONE_POSITIVE` and `ONE_NEGATIVE`
+    (if the first negative / positive annotation) and sets `RUN_TRAINER` to True
+    (which triggers the Trainer Thread to re-train the model if `ONE_POSITIVE`
+    and `ONE_NEGATIVE` are both `True`).
+
+    Arguments:
+    ---------------  
+    queues: dict containing queues to pass data between threads. Each queue must
+        be of class `queue.Queue`
+    
+    Methods:
+    ---------------  
+    run
+
     '''
 
-    def __init__(self, queues, group=None, target=None, name=None, args=(), 
-            kwargs=None, verbose=None):
+    def __init__(self, queues, name=None):
         logging.debug('Initializing Annotator...')
         super(Annotator, self).__init__(name=name)
         self.queues = queues
