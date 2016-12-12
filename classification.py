@@ -108,10 +108,19 @@ class Classifier(threading.Thread):
 class Trainer(threading.Thread):
     '''
     (Re)Trains classification model.
+
+    When `ONE_POSITIVE` and `ONE_NEGATIVE` and `RUN_TRAINER` are set to True (by
+    `Annotator()`, (re-)train the model and put it into `queues['model']
+
+    Arguments:
+    --------------- 
+    queues, dict containing all queues for passing data between threads (see
+        main script)
+    clf: A classifier object. Must contain a `fit(X, y)` method (see sk learn
+        models)
     '''
 
-    def __init__(self, clf, queues, group=None, target=None, name=None, args=(), 
-            kwargs=None, verbose=None):
+    def __init__(self, queues, clf, name=None):
         logging.debug('Initializing Trainer...')
         super(Trainer, self).__init__(name=name)
         self.clf = clf
@@ -119,6 +128,9 @@ class Trainer(threading.Thread):
         logging.debug('Success')
 
     def train_model(self):
+        '''
+        (Re)train the model on all annotated tweets in the db
+        '''
         # Transform data y = []
         X = []
         y = []
