@@ -3,9 +3,11 @@
 
 import queue
 import logging
+import sys
 from sklearn.linear_model import LogisticRegression
 
 # Custom imports
+sys.path.append('src/')
 from streaming import Streamer, Listener
 from classification import Classifier, Trainer
 from annotation import Annotator
