@@ -28,7 +28,7 @@ def main(threads):
     while True:
         try:
             pass
-        except Exeption as e:
+        except Exception as e:
             shared.TERMINATE = True
             # Wait until every thread's cleanup procedure is done
             for thread in threads:
