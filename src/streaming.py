@@ -5,7 +5,7 @@ import time
 
 import numpy as np
 
-
+import shared
 
 class Listener(tweepy.StreamListener):
     '''

@@ -2,6 +2,8 @@ import threading
 import logging
 import spacy
 
+import shared
+
 
 class TextProcessor(threading.Thread):
     '''
