@@ -157,7 +157,7 @@ class Trainer(threading.Thread):
             pass
 
         # After that run everytime prompted by the annotator thread
-        while True:
+        while not shared.TERMINATE:
             if shared.RUN_TRAINER:
                 logging.debug('Retraining Model...')
                 self.train_model()
@@ -165,4 +165,7 @@ class Trainer(threading.Thread):
             else:
                 pass
 
+        self.cleanup()
 
+    def cleanup(self):
+        return None

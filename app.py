@@ -19,6 +19,23 @@ from keywords import Keyword
 import shared
 
 
+def main(threads):
+    # Start Threads
+    for thread in threads:
+        thread.start()
+    
+    # Wait for termination
+    while True:
+        try:
+            pass
+        except Exeption as e:
+            shared.TERMINATE = True
+            # Wait until every thread's cleanup procedure is done
+            for thread in threads:
+                thread.join()
+
+            raise e
+
 if __name__ == "__main__":
    
     # =========================================================================== 
@@ -61,9 +78,7 @@ if __name__ == "__main__":
     annotator = Annotator(name='Annotator', queues=qs)
     trainer = Trainer(name='Trainer', clf=LogisticRegression(), queues=qs)
     
-    # Start Threads
-    streamer.start()
-    text_processor.start()
-    classifier.start()
-    annotator.start()
-    trainer.start()
+    threads = [streamer, text_processor, classifier, annotator, trainer]
+    
+    # Run
+    main(threads)   

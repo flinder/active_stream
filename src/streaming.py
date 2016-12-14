@@ -102,7 +102,7 @@ class Streamer(threading.Thread):
         if not self.offline:
             keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
             logging.debug('Tracking: {}'.format(keywords))
-        while True:
+        while not shared.TERMINATE:
             if not self.offline:
                 try:
                     ok = self.stream.filter(track=keywords)
@@ -112,6 +112,8 @@ class Streamer(threading.Thread):
             else:
                 ok = self.generate_tweet()
                 time.sleep(np.random.uniform(0, 10, 1))
+
+        self.cleanup()
 
 
     def generate_tweet(self):
@@ -130,4 +132,5 @@ class Streamer(threading.Thread):
         logging.debug('Created Random Tweet')
         return True
 
-
+    def cleanup(self): 
+        return None
