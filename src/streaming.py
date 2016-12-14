@@ -23,9 +23,11 @@ class Listener(tweepy.StreamListener):
         logging.debug('Received status')
         status = self.filter_status(status) 
         if status is None:
+            logging.debug('Status removed by filter')
             return True
         else:
             status = self.amend_status(status)
+            logging.debug('Sending status to text processor')
             self.queues['text_processor'].put(status)
             return True
 
@@ -87,7 +89,7 @@ class Streamer(threading.Thread):
                                         listener=Listener(queues))
         else:
             # Get some random text to create tweets when not connected to API
-            with open('text.txt') as infile:
+            with open('data/text.txt') as infile:
                 text = infile.read().split('\n\n')
                 text = [t.replace('\n', ' ') for t in text]
             self.text = text
@@ -116,11 +118,12 @@ class Streamer(threading.Thread):
         '''
         Generate a test tweet.
         '''
-        i = np.random.choice(len(self.text), 1)        
+        i = int(np.random.choice(int(len(self.text)), 1))
         t = self.text[i]
+        del self.text[i]
         if len(t) > 144:
             t = t[:144]
-        status = {'text': t}
+        status = {'text': t, 'id': i}
         status['classifier_relevant'] = None
         status['manual_relevant'] = None
         self.queues['text_processor'].put(status)
