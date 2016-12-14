@@ -25,9 +25,14 @@ credentials = {"coll_1": {
 }
 ```
 
+If you don't have twitter credentials you can set `no_api = False` in the config
+section in `app.py`. The app will then generate artificial tweets that are
+sufficient for testing.
+
+
 Start the application with:
 ```bash
-python active_stream.py
+python app.py
 ```
 
 Monitor status with:
