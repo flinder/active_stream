@@ -1,9 +1,3 @@
-import threading
-import logging
-
-from shared import ONE_POSITIVE, ONE_NEGATIVE, RUN_TRAINER, database, database_lock
-
-
 class Keyword(object):
     '''
     Keyword to track with Twitter API
@@ -27,7 +21,3 @@ class Keyword(object):
     def deactivate(self):
         self.active = False
         self.history.append(('deactivated', time.time()))
-
-   
-
-
