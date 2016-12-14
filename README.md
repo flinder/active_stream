@@ -3,6 +3,13 @@
 
 ## About
 
+## Dependencies
+
+* > Python 3.5
+* Non-standard Python modules: `tweepy`, `spacy`
+* Language data for `spacy` atm english only (`$ python -m spacy.en.download`)
+* Mongodb (listening on `localhost:27017` which is default setting when
+    installing mongodb)
 
 ## Run
 
