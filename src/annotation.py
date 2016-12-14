@@ -52,9 +52,8 @@ class Annotator(threading.Thread):
                         break
                     else:
                         continue
-                shared.database_lock.acquire()
-                shared.database.append(status)
-                shared.database_lock.notify_all()
-                shared.database_lock.release()
+                self.queues['database'].update({'id': status['id']}, status,
+                                               upsert=True)
+
 
 

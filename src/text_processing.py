@@ -33,7 +33,7 @@ class TextProcessor(threading.Thread):
         status:
         '''
         doc = self.parser.tokenizer(status['text'])
-        status['embedding'] = doc.vector
+        status['embedding'] = doc.vector.tolist()
         return status
 
     def run(self):

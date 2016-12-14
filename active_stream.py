@@ -4,6 +4,8 @@
 import queue
 import logging
 import sys
+
+from pymongo import MongoClient
 from sklearn.linear_model import LogisticRegression
 
 # Custom imports
@@ -22,17 +24,20 @@ if __name__ == "__main__":
     # =========================================================================== 
     # Config
     # =========================================================================== 
-    no_api = True                 # Set to True if no API connection available
+    no_api = False                # Set to True if no API connection available
                                   # in this case fake 'tweets' are generated
     keywords = ['merkel']         # Seed keywords
     BUF_SIZE = 100                # Buffer size of queues
+    db = 'active_stream'          # Mongo Database name
+    collection = 'dump'           # Mongo db collection name
     # =========================================================================== 
     
-    # Set up queues
+    # Set up data structures
     qs = {'text_processor': queue.Queue(BUF_SIZE),
           'classifier': queue.Queue(BUF_SIZE),
           'annotator': queue.Queue(BUF_SIZE),
-          'model': queue.Queue(1)
+          'model': queue.Queue(1),
+          'database': MongoClient()[db][collection]
           }
 
     # Process seed input

@@ -59,11 +59,9 @@ class Classifier(threading.Thread):
                    self.queues['annotator'].put(status) 
                 
                 # Put status into database
-                shared.database_lock.acquire()
-                shared.database.append(status)
-                shared.database_lock.notify_all()
-                shared.database_lock.release()
-    
+                self.queues['database'].update({'id': status['id']}, status,
+                                               upsert=True)
+
     def classify_status(self, status):
         '''
         Assess relevance of a status
@@ -83,7 +81,7 @@ class Classifier(threading.Thread):
         if self.clf is None:
             prob = 0.5
         else:
-            X = status['embedding'].reshape(1, -1)
+            X = np.array(status['embedding']).reshape(1,-1)
             pred_prob = self.clf.predict_proba(X) 
             prob = pred_prob[0][1]
 
@@ -135,14 +133,11 @@ class Trainer(threading.Thread):
         # Transform data y = []
         X = []
         y = []
-        shared.database_lock.acquire()
-        for d in shared.database:
+        cursor = self.queues['database'].find() # query all documents currently in db
+        for d in cursor:
             if d['manual_relevant'] is not None:
                 X.append(d['embedding'])
                 y.append(d['manual_relevant'])
-
-        shared.database_lock.notify_all()
-        shared.database_lock.release()
 
         X = np.array(X)
         y = np.array(y)
