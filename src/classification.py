@@ -14,8 +14,7 @@ class Classifier(threading.Thread):
     the probability this classification is based on.
 
     If a status is uncertain (predicted probability between `uncertain_low` and
-    `uncertain_high`) it is put into queues['annotator'] for manual annotation
-    by the oracle.
+    `uncertain_high`) it is put into queues['annotator'] for manual annotation by the oracle.
 
     Arguments:
     --------------- 
@@ -42,7 +41,7 @@ class Classifier(threading.Thread):
         '''
 
         logging.debug('Running.')
-        while True:
+        while not shared.TERMINATE:
             # Check for new model
             self.update_clf()
 
@@ -61,6 +60,9 @@ class Classifier(threading.Thread):
                 # Put status into database
                 self.queues['database'].update({'id': status['id']}, status,
                                                upsert=True)
+
+        logging.debug('Terminating.')
+        self.cleanup()
 
     def classify_status(self, status):
         '''
@@ -102,6 +104,9 @@ class Classifier(threading.Thread):
             logging.debug('Acquiring Model')
             self.clf = self.queues['model'].get()
 
+        return None
+
+    def cleanup(self):
         return None
 
 class Trainer(threading.Thread):
@@ -153,18 +158,18 @@ class Trainer(threading.Thread):
 
         logging.debug('Running.')
         # Wait for first positive / negative annotation
-        while not shared.ONE_POSITIVE or not shared.ONE_NEGATIVE:
-            pass
-
-        # After that run everytime prompted by the annotator thread
         while not shared.TERMINATE:
+        
+            if not shared.ONE_POSITIVE or not shared.ONE_NEGATIVE:
+                continue
+
+            # After that run everytime prompted by the annotator thread
             if shared.RUN_TRAINER:
                 logging.debug('Retraining Model...')
                 self.train_model()
                 logging.debug('Trained Model.')
-            else:
-                pass
 
+        logging.debug('Terminating.')
         self.cleanup()
 
     def cleanup(self):

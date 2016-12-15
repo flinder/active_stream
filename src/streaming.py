@@ -20,7 +20,11 @@ class Listener(tweepy.StreamListener):
         self.queues = queues
 
     def on_status(self, status):
+        if shared.TERMINATE:
+            return False
+
         logging.debug('Received status')
+
         status = self.filter_status(status) 
         if status is None:
             logging.debug('Status removed by filter')
@@ -102,17 +106,15 @@ class Streamer(threading.Thread):
         if not self.offline:
             keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
             logging.debug('Tracking: {}'.format(keywords))
-        while not shared.TERMINATE:
+        stream_ok = True
+        while not shared.TERMINATE and stream_ok:
             if not self.offline:
-                try:
-                    ok = self.stream.filter(track=keywords)
-                except KeyboardInterrupt:
-                    self.stream.disconnect()
-                    break
+                stream_ok = self.stream.filter(track=keywords)
             else:
-                ok = self.generate_tweet()
+                stream_ok = self.generate_tweet()
                 time.sleep(np.random.uniform(0, 10, 1))
 
+        logging.debug('Terminating')
         self.cleanup()
 
 
@@ -133,4 +135,5 @@ class Streamer(threading.Thread):
         return True
 
     def cleanup(self): 
+        self.stream.disconnect()
         return None

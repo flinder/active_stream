@@ -47,7 +47,7 @@ class TextProcessor(threading.Thread):
                 status = self.process_text(status)
                 logging.debug('Processed tweet')
                 self.queues['classifier'].put(status)
-
+        logging.debug('Terminating.')
         self.cleanup()
 
     def cleanup(self):

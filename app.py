@@ -4,6 +4,7 @@
 import queue
 import logging
 import sys
+import time
 
 from pymongo import MongoClient
 from sklearn.linear_model import LogisticRegression
@@ -18,23 +19,26 @@ from text_processing import TextProcessor
 from keywords import Keyword
 import shared
 
-
-def main(threads):
+def main():
     # Start Threads
     for thread in threads:
         thread.start()
     
     # Wait for termination
-    while True:
-        try:
-            pass
-        except Exception as e:
-            shared.TERMINATE = True
-            # Wait until every thread's cleanup procedure is done
-            for thread in threads:
-                thread.join()
+    try:
+        while True:
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        logging.debug('Keyboard Interrupt. Attempting to terminate all threads...')
+        shared.TERMINATE = True
+        # TODO: There should be a max wait time here
+        # Wait until every thread's cleanup procedure is done
+        for thread in threads:
+            thread.join()
 
-            raise e
+        raise KeyboardInterrupt
+
+
 
 if __name__ == "__main__":
    
@@ -60,7 +64,7 @@ if __name__ == "__main__":
     # Process seed input
     keyword_monitor = {}
     for kw in keywords:
-        seed = Keyword('merkel', user_word=True)
+        seed = Keyword(kw, user_word=True)
         keyword_monitor[str(seed)] = seed
 
     # Set up logging
@@ -76,9 +80,10 @@ if __name__ == "__main__":
     classifier = Classifier(name='Classifier', queues=qs)
    
     annotator = Annotator(name='Annotator', queues=qs)
+    annotator.daemon = True
     trainer = Trainer(name='Trainer', clf=LogisticRegression(), queues=qs)
     
     threads = [streamer, text_processor, classifier, annotator, trainer]
     
-    # Run
-    main(threads)   
+    # Run app
+    main()

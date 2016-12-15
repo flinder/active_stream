@@ -1,5 +1,6 @@
 import threading
 import logging
+import signal
 
 import shared
 
@@ -37,7 +38,7 @@ class Annotator(threading.Thread):
         while not shared.TERMINATE:
             if not self.queues['annotator'].empty():
                 status = self.queues['annotator'].get()
-                while True:
+                while not shared.TERMINATE:
                     print(status['text'])
                     annotation = input('Relevant? (y/n)')
                     if annotation == 'y':
@@ -55,6 +56,7 @@ class Annotator(threading.Thread):
                 self.queues['database'].update({'id': status['id']}, status,
                                                upsert=True)
         # Run cleanup if terminated
+        logging.debug('Terminating')
         self.cleanup()
 
     def cleanup(self):
