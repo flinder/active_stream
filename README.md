@@ -13,7 +13,7 @@
 
 ## Run
 
-Put your twitter credentials in a file named `twitter_credentials.py` of the 
+Put your twitter credentials in a file named `credentials.py` of the 
 following format:
 ```javascript
 credentials = {"coll_1": {
