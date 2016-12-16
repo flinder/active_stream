@@ -138,11 +138,11 @@ class Trainer(threading.Thread):
         # Transform data y = []
         X = []
         y = []
-        cursor = self.queues['database'].find() # query all documents currently in db
+        # Get all manually annotated docs from db
+        cursor = self.queues['database'].find({'manual_relevant': {'$ne': None}}) 
         for d in cursor:
-            if d['manual_relevant'] is not None:
-                X.append(d['embedding'])
-                y.append(d['manual_relevant'])
+            X.append(d['embedding'])
+            y.append(d['manual_relevant'])
 
         X = np.array(X)
         y = np.array(y)
