@@ -37,7 +37,7 @@ class Classifier(threading.Thread):
 
     def run(self):
         '''
-        Run the tread
+        Run the thread
         '''
 
         logging.debug('Running.')
@@ -71,7 +71,7 @@ class Classifier(threading.Thread):
         Takes a status and classifies it as relevant / irrelevant. And appends a
         predicted probability to the status object.
 
-        Uses `self.clf` to classify the status. As lon as no model has been
+        Uses `self.clf` to classify the status. As long as no model has been
         trained it assignes 0.5 probability to all statuses.
 
         Arguments:
@@ -148,7 +148,7 @@ class Trainer(threading.Thread):
         y = np.array(y)
         
         # Fit model
-        self.clf.fit(X, y) 
+        self.clf.partial_fit(X, y, classes=np.array([0, 1]))
 
         # Pass model to classifier
         self.queues['model'].put(self.clf)

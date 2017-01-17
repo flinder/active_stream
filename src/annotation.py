@@ -33,7 +33,6 @@ class Annotator(threading.Thread):
         logging.debug('Success.')
 
     def run(self):
-
         logging.debug('Running.')
         while not shared.TERMINATE:
             if not self.queues['annotator'].empty():

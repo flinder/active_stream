@@ -7,7 +7,7 @@ import sys
 import time
 
 from pymongo import MongoClient
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import SGDClassifier
 
 # Custom imports
 sys.path.append('src/')
@@ -81,7 +81,7 @@ if __name__ == "__main__":
    
     annotator = Annotator(name='Annotator', queues=qs)
     annotator.daemon = True
-    trainer = Trainer(name='Trainer', clf=LogisticRegression(), queues=qs)
+    trainer = Trainer(name='Trainer', clf=SGDClassifier(loss='log', penalty='elasticnet'), queues=qs)
     
     threads = [streamer, text_processor, classifier, annotator, trainer]
     
