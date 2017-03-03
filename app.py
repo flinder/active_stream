@@ -5,19 +5,20 @@ import queue
 import logging
 import sys
 import time
+import threading
 
 from pymongo import MongoClient
 from sklearn.linear_model import SGDClassifier
 
 # Custom imports
 sys.path.append('src/')
-from streaming import Streamer, Listener
+from streaming import Streamer, Listener 
 from classification import Classifier, Trainer
 from annotation import Annotator
 from credentials import credentials
 from text_processing import TextProcessor
 from keywords import Keyword
-import shared
+
 
 def main():
     # Start Threads
@@ -27,16 +28,13 @@ def main():
     # Wait for termination
     try:
         while True:
-            time.sleep(0.1)
+            time.sleep(0.05)
     except KeyboardInterrupt:
         logging.debug('Keyboard Interrupt. Attempting to terminate all threads...')
-        shared.TERMINATE = True
-        # TODO: There should be a max wait time here
-        # Wait until every thread's cleanup procedure is done
         for thread in threads:
             thread.join()
 
-        raise KeyboardInterrupt
+        raise KeyboardInterrupt from None
 
 
 
@@ -47,19 +45,17 @@ if __name__ == "__main__":
     # =========================================================================== 
     no_api = False                # Set to True if no API connection available
                                   # in this case fake 'tweets' are generated
-    keywords = ['merkel']         # Seed keywords
+    keywords = ['rick']         # Seed keywords
     BUF_SIZE = 100                # Buffer size of queues
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
     # =========================================================================== 
     
     # Set up data structures
-    qs = {'text_processor': queue.Queue(BUF_SIZE),
-          'classifier': queue.Queue(BUF_SIZE),
-          'annotator': queue.Queue(BUF_SIZE),
-          'model': queue.Queue(1),
-          'database': MongoClient()[db][collection]
-          }
+    text_processor_queue = queue.Queue(BUF_SIZE)
+    db = MongoClient()[db][collection]
+    model_queue = queue.Queue(BUF_SIZE)
+    te = threading.Event() # train event (triggers model training in annotator)
 
     # Process seed input
     keyword_monitor = {}
@@ -74,14 +70,16 @@ if __name__ == "__main__":
     
     # Initialize Threads
     streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
-                        credentials=credentials['coll_1'], queues=qs, 
-                        offline=no_api)
-    text_processor = TextProcessor(name='Text Processor', queues=qs)
-    classifier = Classifier(name='Classifier', queues=qs)
+                        credentials=credentials['coll_1'], 
+                        tp_queue=text_processor_queue, offline=no_api)
+    text_processor = TextProcessor(name='Text Processor', database=db,
+                                   tp_queue=text_processor_queue)
+    classifier = Classifier(name='Classifier', database=db, model=model_queue)
    
-    annotator = Annotator(name='Annotator', queues=qs)
-    annotator.daemon = True
-    trainer = Trainer(name='Trainer', clf=SGDClassifier(loss='log', penalty='elasticnet'), queues=qs)
+    annotator = Annotator(name='Annotator', database=db, train_event=te)
+    trainer = Trainer(name='Trainer', 
+                      clf=SGDClassifier(loss='log', penalty='elasticnet'), 
+                      database=db, model=model_queue, train_trigger=te)
     
     threads = [streamer, text_processor, classifier, annotator, trainer]
     

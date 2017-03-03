@@ -1,8 +1,20 @@
 import threading
+import multiprocessing
 import logging
 import numpy as np
+import queue
+from time import sleep
 
-import shared
+
+class DummyClf(object):
+
+    def __init__(self, value):
+        self.value = value
+
+    def predict_proba(self, X):
+        b = np.array([self.value] * X.shape[0])
+        a = np.array([1 - self.value] * X.shape[0])
+        return np.column_stack((a,b))
 
 class Classifier(threading.Thread):
     '''
@@ -13,101 +25,111 @@ class Classifier(threading.Thread):
     binary classification (bool) and a field 'probability_relevant' containing
     the probability this classification is based on.
 
-    If a status is uncertain (predicted probability between `uncertain_low` and
-    `uncertain_high`) it is put into queues['annotator'] for manual annotation by the oracle.
+    If a status is uncertain (predicted probability in threshold +/- ucr_size) 
+    the status' field to_annotate is set to True.
 
     Arguments:
     --------------- 
-    queues: dict containing queues to pass data between threads.
-    uncertain_low: Lower bound for annotation threshold.
-    uncertain_high: Upper bound for annotation threshold.
+    database: MongoDB connection
+    model: Queue object for passing the model from Trainer to Classifier 
+    threshold: Threshold in predicted probability to classify to relevant /
+        irrelevant.
+    ucr_size: size of interval to both sides of threshold to classify tweets as 
+        uncertain (uncertainty region).  batchsize: size of batches that are classified at a time
     name: str, name of the thread.
     '''
 
-    def __init__(self, queues, uncertain_low=0.4, uncertain_high=0.6, name=None):
+    def __init__(self, database, model, threshold=0.5, ucr_size=0.1, name=None,
+            batchsize=1000, max_clf_procs=1):
 
         logging.debug('Initializing Classifier...')
 
         super(Classifier, self).__init__(name=name)
 
-        self.clf = None
-        self.queues = queues
+        self.clf = DummyClf(threshold)
+        self.database = database
+        self.threshold = threshold
+        self.ucr_lo = threshold - ucr_size
+        self.ucr_hi = threshold + ucr_size
+        self.stoprequest = threading.Event()
+        self.batchsize = batchsize
+        self.model_queue = model
 
         logging.debug('Success')
 
     def run(self):
-        '''
-        Run the thread
-        '''
 
         logging.debug('Running.')
-        while not shared.TERMINATE:
-            # Check for new model
-            self.update_clf()
+        first = True
+        while not self.stoprequest.isSet():
 
-            # Classify statuses in queue
-            if not self.queues['classifier'].empty():
-                status = self.queues['classifier'].get()
-                status = self.classify_status(status)
-                logging.debug('Received tweet. Probability relevant: {}'.format(
-                    status['probability_relevant']))
-
-                # Send uncertain statuses to annotation module
-                if (status['probability_relevant'] > 0.4 
-                        and status['probability_relevant'] < 0.6):
-                   self.queues['annotator'].put(status) 
-                
-                # Put status into database
-                self.queues['database'].update({'id': status['id']}, status,
-                                               upsert=True)
+            if not self.model_queue.empty():
+                logging.debug('Received new model')
+                self.clf = self.model_queue.get()
+                to_classify = self.database.find(
+                     {'manual_relevant': None})
+            else:
+                to_classify = self.database.find(
+                        {'probability_relevant': None,
+                         'manual_relevant': None})
+            
+            count_new = to_classify.count()
+            if count_new > 0:
+                logging.debug('{} new statuses. Classifying...'.format(count_new))
+                self.classify_statuses(to_classify)
+            sleep(2)
 
         logging.debug('Terminating.')
-        self.cleanup()
 
-    def classify_status(self, status):
+
+    def classify_statuses(self, cursor):
         '''
-        Assess relevance of a status
-
-        Takes a status and classifies it as relevant / irrelevant. And appends a
-        predicted probability to the status object.
-
-        Uses `self.clf` to classify the status. As long as no model has been
-        trained it assignes 0.5 probability to all statuses.
-
+        Classify and update in database results from a database query
         Arguments:
-        --------------- 
-        status: dict, a status (tweet) with additional fields ('embedding',
-            'manual_relevant', 'classifier_relevant')
+        cursor: A mongo db cursor
         '''
+        batch = []
+        for status in cursor:
+            batch.append(status)
+            if len(batch) == self.batchsize:
+                self.process_batch(batch)
+                batch = []
 
-        if self.clf is None:
-            prob = 0.5
-        else:
-            X = np.array(status['embedding']).reshape(1,-1)
-            pred_prob = self.clf.predict_proba(X) 
-            prob = pred_prob[0][1]
+        if len(batch) > 0:
+            self.process_batch(batch)
 
-        status['probability_relevant'] = prob
-        if prob < 0.5:
-            status['classifier_relevant'] = False
-        else:
-            status['classifier_relevant'] = True
-        return status
-       
-
-    def update_clf(self):
+    
+    def process_batch(self, batch):
         '''
-        Checks if there is a new clf (model) in `queues['model']` and if so
-        updates the attribute `self.clf`
+        Classify a batch of statuses as relevant / irrelevant based on the 
+        current model
         '''
-        if not self.queues['model'].empty():
-            logging.debug('Acquiring Model')
-            self.clf = self.queues['model'].get()
+        
+        # Get predictions for the model
+        X = np.array([s['embedding'] for s in batch])
+        probs = self.clf.predict_proba(X)[:, 1]
+        logging.debug('Probabilities: {}'.format(probs))
 
-        return None
+        bulk = self.database.initialize_unordered_bulk_op()
+        for status, prob in zip(batch, probs):  
+            if self.ucr_lo < prob < self.ucr_hi:
+                to_annotate = True
+            else:
+                to_annotate = False
 
-    def cleanup(self):
-        return None
+            bulk.find({'_id': status['_id']}).update(
+                      {"$set":{'probability_relevant': prob,
+                               'to_annotate': to_annotate}})
+ 
+        msg = bulk.execute() 
+
+        logging.debug('bulk update: {}'.format(msg))
+
+
+    def join(self, timeout=None):
+        self.stoprequest.set()
+        super(Classifier, self).join(timeout)
+
 
 class Trainer(threading.Thread):
     '''
@@ -124,11 +146,14 @@ class Trainer(threading.Thread):
         models)
     '''
 
-    def __init__(self, queues, clf, name=None):
+    def __init__(self, database, model, clf, train_trigger, name=None):
         logging.debug('Initializing Trainer...')
         super(Trainer, self).__init__(name=name)
         self.clf = clf
-        self.queues = queues
+        self.model_queue = model
+        self.trigger = train_trigger 
+        self.stoprequest = threading.Event()
+        self.database = database
         logging.debug('Success')
 
     def train_model(self):
@@ -139,7 +164,7 @@ class Trainer(threading.Thread):
         X = []
         y = []
         # Get all manually annotated docs from db
-        cursor = self.queues['database'].find({'manual_relevant': {'$ne': None}}) 
+        cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
         for d in cursor:
             X.append(d['embedding'])
             y.append(d['manual_relevant'])
@@ -151,26 +176,25 @@ class Trainer(threading.Thread):
         self.clf.partial_fit(X, y, classes=np.array([0, 1]))
 
         # Pass model to classifier
-        self.queues['model'].put(self.clf)
-        shared.RUN_TRAINER = False
+        self.model_queue.put(self.clf)
         
     def run(self):
 
         logging.debug('Running.')
         # Wait for first positive / negative annotation
-        while not shared.TERMINATE:
+        while not self.stoprequest.isSet():
         
-            if not shared.ONE_POSITIVE or not shared.ONE_NEGATIVE:
-                continue
-
-            # After that run everytime prompted by the annotator thread
-            if shared.RUN_TRAINER:
-                logging.debug('Retraining Model...')
+            if self.trigger.isSet():
+                logging.debug('Training new model')
                 self.train_model()
-                logging.debug('Trained Model.')
+                logging.debug('Finished training')
+                self.trigger.clear()
+            else:
+                sleep(0.05)
 
         logging.debug('Terminating.')
-        self.cleanup()
 
-    def cleanup(self):
-        return None
+
+    def join(self, timeout=None):
+        self.stoprequest.set()
+        super(Trainer, self).join(timeout)

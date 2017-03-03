@@ -1,14 +1,14 @@
 import threading
 import logging
-import signal
+import queue
 
-import shared
+from time import sleep
 
 class Annotator(threading.Thread):
     '''
     Handles manual annotations.
 
-    Takes statuses from queues['annotator'], presents and presents them to the
+    Queries database for uncertain statuses, presents and presents them to the
     user. Once user input is received updates `ONE_POSITIVE` and `ONE_NEGATIVE`
     (if the first negative / positive annotation) and sets `RUN_TRAINER` to True
     (which triggers the Trainer Thread to re-train the model if `ONE_POSITIVE`
@@ -16,8 +16,8 @@ class Annotator(threading.Thread):
 
     Arguments:
     ---------------  
-    queues: dict containing queues to pass data between threads. Each queue must
-        be of class `queue.Queue`.
+    database: pymongo connection
+    train_event: threading event. To communicate with Trainer
     name: str, name of the thread.
     
     Methods:
@@ -26,38 +26,64 @@ class Annotator(threading.Thread):
 
     '''
 
-    def __init__(self, queues, name=None):
+    def __init__(self, database, train_event, name=None):
         logging.debug('Initializing Annotator...')
         super(Annotator, self).__init__(name=name)
-        self.queues = queues
+        self.database = database
+        self.train = train_event
+        self.stoprequest = threading.Event()
+        self.one_positive = False
+        self.one_negative = False
         logging.debug('Success.')
 
     def run(self):
         logging.debug('Running.')
-        while not shared.TERMINATE:
-            if not self.queues['annotator'].empty():
-                status = self.queues['annotator'].get()
-                while not shared.TERMINATE:
+        while not self.stoprequest.isSet():
+
+            # Look for work:
+            work = self.database.find({'manual_relevant': None,
+                                       'to_annotate': True}).limit(1)
+
+            if work.count() == 0:
+                work = self.database.find({
+                    'manual_relevant': None,
+                    'probability_relevant': {'$ne': None}}).limit(1)
+
+            if work.count() > 0:
+                for status in work:
+                    if self.stoprequest.isSet():
+                        break
                     print(status['text'])
-                    annotation = input('Relevant? (y/n)')
-                    if annotation == 'y':
-                        status['manual_relevant'] = True
-                        shared.ONE_POSITIVE = True
-                        shared.RUN_TRAINER = True 
+                    print(status['probability_relevant'])
+                    while not self.stoprequest.isSet():
+                        annotation = input('Relevant? (y/n)')
+                        if annotation == 'y':
+                            out = True
+                            self.one_positive = True
+                            break
+                        elif annotation == 'n':
+                            out = False
+                            self.one_negative = True
+                            break
+                        else:
+                            continue
+                    if self.stoprequest.isSet():
                         break
-                    elif annotation == 'n':
-                        status['manual_relevant'] = False
-                        shared.ONE_NEGATIVE = True
-                        shared.RUN_TRAINER = True
-                        break
-                    else:
-                        continue
-                self.queues['database'].update({'id': status['id']}, status,
-                                               upsert=True)
-        # Run cleanup if terminated
+                    # Update record in DB
+                    msg = self.database.update({'_id': status['_id']}, 
+                                               {'$set': {'manual_relevant': out}})
+                    logging.debug('DB operation: {}'.format(msg))
+
+                    # Trigger trainer if necessary
+                    if self.one_positive and self.one_negative:
+                        self.train.set()
+            else:
+                sleep(0.05)
+                
+                    
         logging.debug('Terminating')
-        self.cleanup()
 
-    def cleanup(self):
-        return None
 
+    def join(self, timeout=None):
+        self.stoprequest.set()
+        super(Annotator, self).join(timeout)

@@ -5,7 +5,6 @@ import time
 
 import numpy as np
 
-import shared
 
 class Listener(tweepy.StreamListener):
     '''
@@ -13,16 +12,16 @@ class Listener(tweepy.StreamListener):
 
     Grabs statuses from the Twitter streaming API, adds fields required for the
     application, filters irrelevant ones and passes them to the text processor.
+
+    Arguments:
+    tp_queue: Text processor queue 
     '''
 
-    def __init__(self, queues):
+    def __init__(self, tp_queue):
         super(Listener, self).__init__()
-        self.queues = queues
+        self.tp_queue = tp_queue
 
     def on_status(self, status):
-        if shared.TERMINATE:
-            return False
-
         logging.debug('Received status')
 
         status = self.filter_status(status) 
@@ -32,7 +31,7 @@ class Listener(tweepy.StreamListener):
         else:
             status = self.amend_status(status)
             logging.debug('Sending status to text processor')
-            self.queues['text_processor'].put(status)
+            self.tp_queue.put(status)
             return True
 
     def on_error(self, status):
@@ -40,10 +39,13 @@ class Listener(tweepy.StreamListener):
 
     def amend_status(self, status):
         '''
-        Adds relevance fields to status.
+        Adds relevance and default prob relevant to status.
         '''
         status['classifier_relevant'] = None
         status['manual_relevant'] = None
+        status['probability_relevant'] = None
+        status['to_annotate'] = False
+
         return status
 
     def filter_status(self, status):
@@ -67,12 +69,12 @@ class Streamer(threading.Thread):
     --------------
     keyword_monitor: dict, containing all keywords as `Keyword()` objects
     credentials: dict, containing Twitter API credentials.
-    queues: dict containing all queues to pass data between Threads.
+    tp_queue: Queue for the text processor
     offline: bool, if set to true, no tweets from the API are grabbed but fake
         tweets are vreated instead. For testing and developing offline.
     name: str, name of the thread.
     '''
-    def __init__(self, keyword_monitor, credentials, queues, name=None, 
+    def __init__(self, keyword_monitor, credentials, tp_queue, name=None, 
                  offline=False):
 
         logging.debug('Initializing Streamer...')
@@ -80,7 +82,8 @@ class Streamer(threading.Thread):
         super(Streamer, self).__init__(name=name)
 
         self.offline = offline
-        self.queues = queues
+        self.tp_queue = tp_queue
+        self.stoprequest = threading.Event()
 
         if not self.offline:
             self.keyword_monitor = keyword_monitor
@@ -90,7 +93,7 @@ class Streamer(threading.Thread):
             auth.set_access_token(credentials['access_token'],
                                   credentials['access_token_secret'])
             self.stream = tweepy.Stream(auth=auth,
-                                        listener=Listener(queues))
+                                        listener=Listener(tp_queue))
         else:
             # Get some random text to create tweets when not connected to API
             with open('data/text.txt') as infile:
@@ -107,7 +110,7 @@ class Streamer(threading.Thread):
             keywords = [str(self.keyword_monitor[kw]) for kw in self.keyword_monitor]
             logging.debug('Tracking: {}'.format(keywords))
         stream_ok = True
-        while not shared.TERMINATE and stream_ok:
+        while not self.stoprequest.isSet() and stream_ok:
             if not self.offline:
                 stream_ok = self.stream.filter(track=keywords)
             else:
@@ -115,7 +118,11 @@ class Streamer(threading.Thread):
                 time.sleep(np.random.uniform(0, 10, 1))
 
         logging.debug('Terminating')
-        self.cleanup()
+
+    def join(self, timeout=None):
+        self.stoprequest.set()
+        self.stream.disconnect()
+        super(Streamer, self).join(timeout)
 
 
     def generate_tweet(self):
@@ -130,10 +137,8 @@ class Streamer(threading.Thread):
         status = {'text': t, 'id': i}
         status['classifier_relevant'] = None
         status['manual_relevant'] = None
-        self.queues['text_processor'].put(status)
+        status['probability_relevant'] = None
+        self.tp_queue.put(status)
         logging.debug('Created Random Tweet')
         return True
 
-    def cleanup(self): 
-        self.stream.disconnect()
-        return None
