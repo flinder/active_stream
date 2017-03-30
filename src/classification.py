@@ -45,8 +45,8 @@ class Classifier(threading.Thread):
     name: str, name of the thread.
     '''
 
-    def __init__(self, database, model, dictionary, dict_lock, threshold=0.5, ucr_size=0.1, 
-                 name=None, batchsize=1000, max_clf_procs=1):
+    def __init__(self, database, model, dictionary, dict_lock, threshold=0.5,
+                 ucr_size=0.4, name=None, batchsize=1000, max_clf_procs=1):
 
         logging.debug('Initializing Classifier...')
 
