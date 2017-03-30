@@ -130,9 +130,6 @@ class Classifier(threading.Thread):
  
         msg = bulk.execute() 
 
-        logging.debug('bulk update: {}'.format(msg))
-
-
     def join(self, timeout=None):
         self.stoprequest.set()
         super(Classifier, self).join(timeout)
@@ -153,7 +150,8 @@ class Trainer(threading.Thread):
         models)
     '''
 
-    def __init__(self, database, model, clf, train_trigger, name=None):
+    def __init__(self, database, model, clf, train_trigger, dictionary,
+                 dict_lock, name=None):
         logging.debug('Initializing Trainer...')
         super(Trainer, self).__init__(name=name)
         self.clf = clf
@@ -161,6 +159,8 @@ class Trainer(threading.Thread):
         self.trigger = train_trigger 
         self.stoprequest = threading.Event()
         self.database = database
+        self.dictionary = dictionary
+        self.dict_lock = dict_lock
         logging.debug('Success')
 
     def train_model(self):
@@ -176,12 +176,19 @@ class Trainer(threading.Thread):
             corpus.append(d['bow'])
             y.append(d['manual_relevant'])
 
-        X = matutils.corpus2csc(corpus, num_docs=len(corpus)).transpose()
+        X = matutils.corpus2dense(corpus, num_docs=len(corpus),
+                                  num_terms=len(self.dictionary)).transpose()
         y = np.array(y)
         
         # Fit model
         #self.clf.partial_fit(X, y, classes=np.array([0, 1]))
         self.clf.fit(X, y)
+        mif_indices = sorted(enumerate(self.clf.coef_[0]), key=lambda x: x[1], 
+                             reverse=True)
+        mif_indices = [x[0] for x in mif_indices]
+        with self.dict_lock: 
+            mif = [self.dictionary.id2token[id_] for id_ in mif_indices[:10]]
+        logging.debug("Most important features: {}".format(mif))
 
         # Pass model to classifier
         self.model_queue.put(self.clf)

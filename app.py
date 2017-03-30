@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # =========================================================================== 
     no_api = False                # Set to True if no API connection available
                                   # in this case fake 'tweets' are generated
-    keywords = ['merkel', 'trump'] # Seed keywords
+    keywords = ['merkel']         # Seed keywords
     BUF_SIZE = 100                # Buffer size of queues
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
@@ -88,7 +88,8 @@ if __name__ == "__main__":
     annotator = Annotator(name='Annotator', database=db, train_event=te)
     trainer = Trainer(name='Trainer', 
                       clf=SGDClassifier(loss='log', penalty='elasticnet'), 
-                      database=db, model=model_queue, train_trigger=te)
+                      database=db, model=model_queue, train_trigger=te,
+                      dictionary=d, dict_lock=dl)
     
     threads = [streamer, text_processor, classifier, annotator, trainer]
     
