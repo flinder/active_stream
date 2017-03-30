@@ -1,14 +1,14 @@
 # Script to run the active_stream application. Set all parameters in 'config'
-# section
-
+# section 
 import queue
 import logging
 import sys
-import time
+import time 
 import threading
 
 from pymongo import MongoClient
 from sklearn.linear_model import SGDClassifier
+from gensim import corpora
 
 # Custom imports
 sys.path.append('src/')
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # =========================================================================== 
     no_api = False                # Set to True if no API connection available
                                   # in this case fake 'tweets' are generated
-    keywords = ['rick']         # Seed keywords
+    keywords = ['merkel', 'trump'] # Seed keywords
     BUF_SIZE = 100                # Buffer size of queues
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
@@ -54,8 +54,13 @@ if __name__ == "__main__":
     # Set up data structures
     text_processor_queue = queue.Queue(BUF_SIZE)
     db = MongoClient()[db][collection]
-    model_queue = queue.Queue(BUF_SIZE)
+    model_queue = queue.Queue(1)
     te = threading.Event() # train event (triggers model training in annotator)
+    dl = threading.Lock()  
+    d = corpora.Dictionary()
+
+    # Clear database
+    db.drop()
 
     # Process seed input
     keyword_monitor = {}
@@ -64,6 +69,8 @@ if __name__ == "__main__":
         keyword_monitor[str(seed)] = seed
 
     # Set up logging
+    with open('debug.log', 'w') as logfile:
+        pass
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s (%(threadName)s) %(message)s',
                         filename='debug.log')
@@ -73,8 +80,10 @@ if __name__ == "__main__":
                         credentials=credentials['coll_1'], 
                         tp_queue=text_processor_queue, offline=no_api)
     text_processor = TextProcessor(name='Text Processor', database=db,
-                                   tp_queue=text_processor_queue)
-    classifier = Classifier(name='Classifier', database=db, model=model_queue)
+                                   tp_queue=text_processor_queue, 
+                                   dictionary=d, dict_lock=dl)
+    classifier = Classifier(name='Classifier', database=db, model=model_queue,
+                            dictionary=d, dict_lock=dl)
    
     annotator = Annotator(name='Annotator', database=db, train_event=te)
     trainer = Trainer(name='Trainer', 
