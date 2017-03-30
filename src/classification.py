@@ -3,13 +3,17 @@ import multiprocessing
 import logging
 import numpy as np
 import queue
+import scipy.sparse
+
 from time import sleep
+from gensim import matutils
 
 
 class DummyClf(object):
 
     def __init__(self, value):
         self.value = value
+        self.coef_ = np.array([None], ndmin=2)
 
     def predict_proba(self, X):
         b = np.array([self.value] * X.shape[0])
@@ -32,6 +36,8 @@ class Classifier(threading.Thread):
     --------------- 
     database: MongoDB connection
     model: Queue object for passing the model from Trainer to Classifier 
+    dictionary: A gensim dictionary object
+    dict_lock: threading.Lock object for dictionary use
     threshold: Threshold in predicted probability to classify to relevant /
         irrelevant.
     ucr_size: size of interval to both sides of threshold to classify tweets as 
@@ -39,8 +45,8 @@ class Classifier(threading.Thread):
     name: str, name of the thread.
     '''
 
-    def __init__(self, database, model, threshold=0.5, ucr_size=0.1, name=None,
-            batchsize=1000, max_clf_procs=1):
+    def __init__(self, database, model, dictionary, dict_lock, threshold=0.5, ucr_size=0.1, 
+                 name=None, batchsize=1000, max_clf_procs=1):
 
         logging.debug('Initializing Classifier...')
 
@@ -54,6 +60,8 @@ class Classifier(threading.Thread):
         self.stoprequest = threading.Event()
         self.batchsize = batchsize
         self.model_queue = model
+        self.dictionary = dictionary
+        self.dict_lock = dict_lock
 
         logging.debug('Success')
 
@@ -66,49 +74,48 @@ class Classifier(threading.Thread):
             if not self.model_queue.empty():
                 logging.debug('Received new model')
                 self.clf = self.model_queue.get()
-                to_classify = self.database.find(
-                     {'manual_relevant': None})
+                with self.dict_lock:
+                    n_terms = len(self.dictionary)
+                    to_classify = self.database.find({'manual_relevant': None})
+
             else:
-                to_classify = self.database.find(
-                        {'probability_relevant': None,
-                         'manual_relevant': None})
+                with self.dict_lock:
+                    n_terms = len(self.dictionary)
+                    to_classify = self.database.find(
+                            {'probability_relevant': None,
+                             'manual_relevant': None})
             
             count_new = to_classify.count()
             if count_new > 0:
                 logging.debug('{} new statuses. Classifying...'.format(count_new))
-                self.classify_statuses(to_classify)
-            sleep(2)
+                batch = []
+                for status in to_classify:
+                    batch.append(status)
+                    if len(batch) == self.batchsize:
+                        self.process_batch(batch, n_terms)
+                        batch = []
+
+                if len(batch) > 0:
+                    self.process_batch(batch, n_terms)
+            sleep(0.1)
 
         logging.debug('Terminating.')
 
-
-    def classify_statuses(self, cursor):
-        '''
-        Classify and update in database results from a database query
-        Arguments:
-        cursor: A mongo db cursor
-        '''
-        batch = []
-        for status in cursor:
-            batch.append(status)
-            if len(batch) == self.batchsize:
-                self.process_batch(batch)
-                batch = []
-
-        if len(batch) > 0:
-            self.process_batch(batch)
-
-    
-    def process_batch(self, batch):
+    def process_batch(self, batch, n_terms):
         '''
         Classify a batch of statuses as relevant / irrelevant based on the 
         current model
+
+        batch: list, of dicts containing statuses to be proceessed
+        n_terms: number of terms in dictionary at query time
         '''
         
-        # Get predictions for the model
-        X = np.array([s['embedding'] for s in batch])
+        corpus = [status['bow'] for status in batch] 
+        X = matutils.corpus2dense(corpus, num_docs=len(corpus),
+                                  num_terms=n_terms).transpose()
+        n_features = self.clf.coef_.shape[1]
+        X = X[:, :n_features]
         probs = self.clf.predict_proba(X)[:, 1]
-        logging.debug('Probabilities: {}'.format(probs))
 
         bulk = self.database.initialize_unordered_bulk_op()
         for status, prob in zip(batch, probs):  
@@ -161,19 +168,20 @@ class Trainer(threading.Thread):
         (Re)train the model on all annotated tweets in the db
         '''
         # Transform data y = []
-        X = []
+        corpus = []
         y = []
         # Get all manually annotated docs from db
         cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
         for d in cursor:
-            X.append(d['embedding'])
+            corpus.append(d['bow'])
             y.append(d['manual_relevant'])
 
-        X = np.array(X)
+        X = matutils.corpus2csc(corpus, num_docs=len(corpus)).transpose()
         y = np.array(y)
         
         # Fit model
-        self.clf.partial_fit(X, y, classes=np.array([0, 1]))
+        #self.clf.partial_fit(X, y, classes=np.array([0, 1]))
+        self.clf.fit(X, y)
 
         # Pass model to classifier
         self.model_queue.put(self.clf)

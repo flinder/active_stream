@@ -59,7 +59,6 @@ class Listener(tweepy.StreamListener):
         else:
             return status
 
-
 class Streamer(threading.Thread):
     '''
     Connects to Twitter API and directs incoming statuses to the respective 

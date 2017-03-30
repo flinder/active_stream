@@ -14,45 +14,39 @@ class TextProcessor(threading.Thread):
     --------------- 
     tp_queue: Queue containing work (statuses) for the text processor
     database: MongoDB connection
+    dictionary: A gensim dictionary object
     name: str, name of the thread.
+    stopwords: list, list of stopwords to enforce
     '''
 
-    def __init__(self, tp_queue, database, name=None):
+    def __init__(self, tp_queue, database, dictionary, dict_lock, name=None, 
+                 stopwords=[]):
         logging.debug('Initializing Text Processor...')
         super(TextProcessor, self).__init__(name=name)
         self.parser = spacy.load('en')
         self.tp_queue = tp_queue
         self.database = database
         self.stoprequest = threading.Event()
+        self.stoplist = set(stopwords)
+        self.dictionary = dictionary
+        self.dict_lock = dict_lock
         logging.debug('Success.')
 
     def process_text(self, status):
         '''
-        Tokenize and embedd status text
-
-        See the spacy documentation on details about the embedding.
+        Tokenize status text
 
         Arguments:
         ---------------   
-        status:
+        status: dict, the tweet to process
         '''
-        doc = self.parser(status['text'])
-        status['embedding'] = doc.vector.tolist()
-        new = 0
-        tot = 0
-        for token in doc:
-            tot += 1
-            if token.vector.sum() == 0:
-                new += 1
 
-        status['prop_vectorized'] = new / tot
-        #status['tokens'] = {}
-        #for token in doc:
-        #    token = token.lemma_
-        #    token = token.replace('.', '')
-        #    token = token.replace('$', '')
-        #    status['tokens'][token] = status['tokens'].get(token, 0) + 1
+        doc = self.parser(status['text'])
+        lemmas = [t.lemma_ for t in doc if t.lemma_ not in self.stoplist] 
+        with self.dict_lock:
+            status['bow'] = self.dictionary.doc2bow(lemmas, allow_update=True)
         return status
+
 
     def run(self):
         logging.debug('Running.')
