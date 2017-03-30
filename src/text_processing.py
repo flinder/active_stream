@@ -45,6 +45,10 @@ class TextProcessor(threading.Thread):
         lemmas = [t.lemma_ for t in doc if t.lemma_ not in self.stoplist] 
         with self.dict_lock:
             status['bow'] = self.dictionary.doc2bow(lemmas, allow_update=True)
+            # Get id -> tokn mapping
+            self.dictionary.id2token = {v: k 
+                                        for k, v 
+                                        in self.dictionary.token2id.items()}
         return status
 
 
