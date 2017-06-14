@@ -5,10 +5,10 @@ import logging
 import sys
 import time 
 import threading
-
 from pymongo import MongoClient
 from sklearn.linear_model import SGDClassifier
 from gensim import corpora
+
 
 # Custom imports
 sys.path.append('src/')
@@ -18,6 +18,7 @@ from annotation import Annotator
 from credentials import credentials
 from text_processing import TextProcessor
 from keywords import Keyword
+from interface import Interface
 
 
 def main():
@@ -37,7 +38,6 @@ def main():
         raise KeyboardInterrupt from None
 
 
-
 if __name__ == "__main__":
    
     # =========================================================================== 
@@ -49,12 +49,15 @@ if __name__ == "__main__":
     BUF_SIZE = 100                # Buffer size of queues
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
+    filters = {'languages': [], 'locations': []} # Not implemented
     # =========================================================================== 
     
     # Set up data structures
     text_processor_queue = queue.Queue(BUF_SIZE)
     db = MongoClient()[db][collection]
     model_queue = queue.Queue(1)
+    tweet_display_queue = queue.Queue(1)
+    tweet_annotated_queue = queue.Queue(BUF_SIZE)
     te = threading.Event() # train event (triggers model training in annotator)
     dl = threading.Lock()  
     d = corpora.Dictionary()
@@ -74,24 +77,31 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s (%(threadName)s) %(message)s',
                         filename='debug.log')
-    
+        
     # Initialize Threads
     streamer = Streamer(name='Streamer', keyword_monitor=keyword_monitor,
                         credentials=credentials['coll_1'], 
-                        tp_queue=text_processor_queue, offline=no_api)
+                        tp_queue=text_processor_queue, offline=no_api, 
+                        filter_params=filters)
     text_processor = TextProcessor(name='Text Processor', database=db,
                                    tp_queue=text_processor_queue, 
                                    dictionary=d, dict_lock=dl)
     classifier = Classifier(name='Classifier', database=db, model=model_queue,
                             dictionary=d, dict_lock=dl)
    
-    annotator = Annotator(name='Annotator', database=db, train_event=te)
+    annotator = Annotator(name='Annotator', database=db, train_event=te, 
+                          display_queue=tweet_display_queue, 
+                          annotated_queue=tweet_annotated_queue)
     trainer = Trainer(name='Trainer', 
                       clf=SGDClassifier(loss='log', penalty='elasticnet'), 
                       database=db, model=model_queue, train_trigger=te,
                       dictionary=d, dict_lock=dl)
+    interface = Interface(name='Interface', display_queue=tweet_display_queue, 
+                          annotated_queue=tweet_annotated_queue)
     
-    threads = [streamer, text_processor, classifier, annotator, trainer]
+    threads = [streamer, text_processor, classifier, annotator, trainer,
+               interface]
     
     # Run app
     main()
+

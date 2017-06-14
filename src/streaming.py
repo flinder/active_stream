@@ -53,11 +53,8 @@ class Listener(tweepy.StreamListener):
         Additional filters to remove statuses. Also converts tweepy Status
         object to dictionary.
         '''
-        status = status._json 
-        if status['lang'] != 'en':
-            return None
-        else:
-            return status
+        status = status._json
+        return status
 
 class Streamer(threading.Thread):
     '''
@@ -73,8 +70,8 @@ class Streamer(threading.Thread):
         tweets are vreated instead. For testing and developing offline.
     name: str, name of the thread.
     '''
-    def __init__(self, keyword_monitor, credentials, tp_queue, name=None, 
-                 offline=False):
+    def __init__(self, keyword_monitor, credentials, tp_queue, filter_params,
+                 name=None, offline=False):
 
         logging.debug('Initializing Streamer...')
 
@@ -83,6 +80,7 @@ class Streamer(threading.Thread):
         self.offline = offline
         self.tp_queue = tp_queue
         self.stoprequest = threading.Event()
+        self.filter_params = filter_params
 
         if not self.offline:
             self.keyword_monitor = keyword_monitor
@@ -111,7 +109,8 @@ class Streamer(threading.Thread):
         stream_ok = True
         while not self.stoprequest.isSet() and stream_ok:
             if not self.offline:
-                stream_ok = self.stream.filter(track=keywords)
+                stream_ok = self.stream.filter(track=keywords, 
+                                               **self.filter_params)
             else:
                 stream_ok = self.generate_tweet()
                 time.sleep(np.random.uniform(0, 10, 1))
