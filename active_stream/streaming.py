@@ -78,41 +78,40 @@ class Streamer(threading.Thread):
         self.keyword_queue = kw_queue
         self.keywords = set(keywords)
         # Set up twitter authentication
-        auth = tweepy.OAuthHandler(credentials['consumer_key'], 
-                                   credentials['consumer_secret'])
-        auth.set_access_token(credentials['access_token'],
-                              credentials['access_token_secret'])
-        self.stream = tweepy.Stream(auth=auth,
-                                    listener=Listener(tp_queue, 
-                                                      self.stoprequest,
-                                                      self.keyword_queue))
-
+        self.auth = tweepy.OAuthHandler(credentials['consumer_key'], 
+                                        credentials['consumer_secret'])
+        self.auth.set_access_token(credentials['access_token'],
+                                   credentials['access_token_secret'])
     def run(self):
+        
         while not self.stoprequest.isSet():
             logging.info('Ready!')
             logging.info(f'Tracking: {self.keywords}')
-            stream_ok = self.stream.filter(track=self.keywords, 
-                                           **self.filter_params, async=True)
+            time.sleep(0.05)
+            lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue)
+            stream = tweepy.Stream(auth=self.auth, listener=lis)
+            stream.filter(track=list(self.keywords), **self.filter_params, 
+                          async=True)
 
             while True:
                 if self.stoprequest.isSet():
-                    self.stream.disconnect()
+                    stream.disconnect()
                     break
                 if not self.keyword_queue.empty():
-                    logging.info('Found new item in keyword queue')
                     # Check if add or remove
                     request = self.keyword_queue.get()
                     word = request['word']
                     if request['add']:
                         logging.info(f'Adding new keyword to stream: {word}')
                         self.keywords.update([word])
-                        self.stream.disconnect()
+                        stream.disconnect()
                     else:
                         logging.info(f'Removing keyword from stream: {word}')
                         self.keywords.remove(word)
-                        self.stream.disconnect()
+                        stream.disconnect()
                     break
-                time.sleep(0.5)
+
+                time.sleep(0.05)
 
         logging.info('Leaving stream')
 

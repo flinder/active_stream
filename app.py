@@ -71,7 +71,7 @@ def add_keyword(message):
     keyword_queue.put({'add': True, 'word': message['data']})
 
 @socketio.on('remove_keyword')
-def add_keyword(message):
+def remove_keyword(message):
     logging.info('Received request to remove keyword. Sending to Streamer.')
     keyword_queue.put({'add': False, 'word': message['data']})
 
