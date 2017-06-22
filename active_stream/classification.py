@@ -29,108 +29,105 @@ class Classifier(threading.Thread):
     binary classification (bool) and a field 'probability_relevant' containing
     the probability this classification is based on.
 
-    If a status is uncertain (predicted probability in threshold +/- ucr_size) 
-    the status' field to_annotate is set to True.
-
     Arguments:
     --------------- 
     database: MongoDB connection
     model: Queue object for passing the model from Trainer to Classifier 
     dictionary: A gensim dictionary object
-    dict_lock: threading.Lock object for dictionary use
     threshold: Threshold in predicted probability to classify to relevant /
         irrelevant.
-    ucr_size: size of interval to both sides of threshold to classify tweets as 
-        uncertain (uncertainty region).  batchsize: size of batches that are classified at a time
     name: str, name of the thread.
+    batchsize: How many statues to classifiy in one batch
+    max_clf_procs: Maximum number of processors to allocate to classifier
     '''
 
-    def __init__(self, database, model, dictionary, dict_lock, threshold=0.5,
-                 ucr_size=0.4, name=None, batchsize=1000, max_clf_procs=1):
-
-        logging.debug('Initializing Classifier...')
-
+    def __init__(self, database, model, dictionary, threshold=0.5,
+                 name=None, batchsize=1000, max_clf_procs=1):
         super(Classifier, self).__init__(name=name)
-
         self.clf = DummyClf(threshold)
         self.database = database
         self.threshold = threshold
-        self.ucr_lo = threshold - ucr_size
-        self.ucr_hi = threshold + ucr_size
         self.stoprequest = threading.Event()
         self.batchsize = batchsize
         self.model_queue = model
         self.dictionary = dictionary
-        self.dict_lock = dict_lock
 
-        logging.debug('Success')
 
     def run(self):
-
-        logging.debug('Running.')
+        logging.info('Ready!')
         first = True
         while not self.stoprequest.isSet():
 
             if not self.model_queue.empty():
-                logging.debug('Received new model')
+                logging.info('Received new model')
                 self.clf = self.model_queue.get()
-                with self.dict_lock:
-                    n_terms = len(self.dictionary)
-                    to_classify = self.database.find({'manual_relevant': None})
+                to_classify = self.database.find({'manual_relevant': None})
 
             else:
-                with self.dict_lock:
-                    n_terms = len(self.dictionary)
-                    to_classify = self.database.find(
-                            {'probability_relevant': None,
-                             'manual_relevant': None})
-            
+                to_classify = self.database.find({'probability_relevant': None,
+                                                  'manual_relevant': None})
+        
             count_new = to_classify.count()
             if count_new > 0:
-                logging.debug('{} new statuses. Classifying...'.format(count_new))
                 batch = []
                 for status in to_classify:
                     batch.append(status)
                     if len(batch) == self.batchsize:
-                        self.process_batch(batch, n_terms)
+                        self.process_batch(batch)
                         batch = []
 
                 if len(batch) > 0:
-                    self.process_batch(batch, n_terms)
-            sleep(0.1)
+                    self.process_batch(batch)
+            sleep(1)
 
-        logging.debug('Terminating.')
+        logging.info("Stopped.")
 
-    def process_batch(self, batch, n_terms):
+    def process_batch(self, batch):
         '''
         Classify a batch of statuses as relevant / irrelevant based on the 
         current model
 
         batch: list, of dicts containing statuses to be proceessed
-        n_terms: number of terms in dictionary at query time
         '''
-        
+         
         corpus = [status['bow'] for status in batch] 
+
+        corpus = [0] * len(batch)
+        dict_sizes = np.zeros(len(batch))
+        for i,s in enumerate(batch):
+            corpus[i] = s['bow']
+            dict_sizes[i] = s['dict_size']
+
+        n_terms_dict = max(dict_sizes)
+        n_terms_model = self.clf.coef_.shape[1]
+        if n_terms_model > n_terms_dict:
+            n_terms_dict = n_terms_model
+
         X = matutils.corpus2dense(corpus, num_docs=len(corpus),
-                                  num_terms=n_terms).transpose()
-        n_features = self.clf.coef_.shape[1]
-        X = X[:, :n_features]
+                                  num_terms=n_terms_dict).transpose()
+        
+        if n_terms_dict > n_terms_model:
+            X = X[:, :n_terms_model]
+        
         probs = self.clf.predict_proba(X)[:, 1]
 
         bulk = self.database.initialize_unordered_bulk_op()
         for status, prob in zip(batch, probs):  
-            if self.ucr_lo < prob < self.ucr_hi:
-                to_annotate = True
+            ap = (prob - 0.5)**2
+            if prob < 0.5:
+                clf_rel = False
             else:
-                to_annotate = False
+                clf_rel = True
 
             bulk.find({'_id': status['_id']}).update(
                       {"$set":{'probability_relevant': prob,
-                               'to_annotate': to_annotate}})
+                               'classifier_relevant': clf_rel,
+                               'annotation_priority': ap}})
  
         msg = bulk.execute() 
 
     def join(self, timeout=None):
+        logging.info("Received stoprequest")
         self.stoprequest.set()
         super(Classifier, self).join(timeout)
 
@@ -144,15 +141,19 @@ class Trainer(threading.Thread):
 
     Arguments:
     --------------- 
-    queues, dict containing all queues for passing data between threads (see
-        main script)
+    database: pymongo connection to database
+    model: queue object to send model to classifier
     clf: A classifier object. Must contain a `fit(X, y)` method (see sk learn
         models)
+    train_trigger: threading.Event to trigger training of new model (triggered
+        by annotator)
+    dictionary: current dictionary from text processor
+    most_important_features: most important features
+
     '''
 
-    def __init__(self, database, model, clf, train_trigger, dictionary,
-                 dict_lock, name=None):
-        logging.debug('Initializing Trainer...')
+    def __init__(self, database, model, clf, train_trigger, dictionary, 
+                 most_important_features, name=None):
         super(Trainer, self).__init__(name=name)
         self.clf = clf
         self.model_queue = model
@@ -160,8 +161,7 @@ class Trainer(threading.Thread):
         self.stoprequest = threading.Event()
         self.database = database
         self.dictionary = dictionary
-        self.dict_lock = dict_lock
-        logging.debug('Success')
+        self.mif_queue = most_important_features
 
     def train_model(self):
         '''
@@ -169,15 +169,17 @@ class Trainer(threading.Thread):
         '''
         # Transform data y = []
         corpus = []
+        dict_lens = []
         y = []
         # Get all manually annotated docs from db
         cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
         for d in cursor:
             corpus.append(d['bow'])
+            dict_lens.append(d['dict_size'])
             y.append(d['manual_relevant'])
 
         X = matutils.corpus2dense(corpus, num_docs=len(corpus),
-                                  num_terms=len(self.dictionary)).transpose()
+                                  num_terms=max(dict_lens)).transpose()
         y = np.array(y)
         
         # Fit model
@@ -186,28 +188,25 @@ class Trainer(threading.Thread):
         mif_indices = sorted(enumerate(self.clf.coef_[0]), key=lambda x: x[1], 
                              reverse=True)
         mif_indices = [x[0] for x in mif_indices]
-        with self.dict_lock: 
-            mif = [self.dictionary.id2token[id_] for id_ in mif_indices[:10]]
-        logging.debug("Most important features: {}".format(mif))
+        mif = [self.dictionary.id2token[id_] for id_ in mif_indices[:10]]
+        self.mif_queue.put(mif)
 
         # Pass model to classifier
         self.model_queue.put(self.clf)
         
     def run(self):
-
-        logging.debug('Running.')
+        logging.info('Ready!')
         # Wait for first positive / negative annotation
         while not self.stoprequest.isSet():
         
             if self.trigger.isSet():
-                logging.debug('Training new model')
+                logging.info('Training new model')
                 self.train_model()
-                logging.debug('Finished training')
                 self.trigger.clear()
             else:
                 sleep(0.05)
 
-        logging.debug('Terminating.')
+        logging.info('Stopped')
 
 
     def join(self, timeout=None):

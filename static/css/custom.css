@@ -1,0 +1,13 @@
+.fixed-panel {
+  min-height: 40rem;
+  max-height: 40rem;
+  overflow-y: scroll;
+}
+body {
+    background-color: #f6f6f6;
+}
+.text_holder {
+    display: block;
+    max-width: 100%;
+    word-wrap: break-word;
+}
