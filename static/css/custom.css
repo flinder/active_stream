@@ -11,3 +11,13 @@ body {
     max-width: 100%;
     word-wrap: break-word;
 }
+.huge {
+  font-size: 35px;
+  text-align: right;
+}
+.green {
+    color: green;
+}
+.red {
+    color: green;
+}

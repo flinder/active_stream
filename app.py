@@ -54,6 +54,8 @@ def tweet_irrelevant():
 @socketio.on('connect')
 def test_connect():
     logging.info("Starting Annotator.")
+    logging.info('Sending currently active keywords to interface')
+    emit('keywords', {'keywords': list(streamer.keywords)})
     try:
         annotator.start()
     except Exception as e:

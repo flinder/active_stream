@@ -3,7 +3,23 @@ $(document).ready(function() {
     // The connection URL has the following format:
     //     http[s]://<domain>:<port>[/<namespace>]
     var socket = io.connect(location.protocol + '//' + document.domain + ':' + 
-            location.port);
+                            location.port);
+    
+    socket.emit('refresh');
+    // Display active keywords
+    socket.on('keywords', function(msg) {
+        console.log('Received active keywords');
+        var kw = msg['keywords'];
+        var deleteButton = 
+            "<button class='delete btn btn-danger'>Remove</button>";
+        for (var i = 0; i < kw.length; i++) {
+            $(".list_of_items").append("<li class='list-group-item clearfix'>"+ 
+                    "<div id='word' class='pull-left'>" + 
+                    kw[i] + "</div>" + 
+                    "<div class='pull-right'>" + deleteButton + "</div>" + 
+                    "</li>");
+        }
+    });
 
     // Event handler for new tweet to display
     socket.on('display_tweet', function(msg) {
