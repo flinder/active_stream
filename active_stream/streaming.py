@@ -2,6 +2,7 @@ import tweepy
 import threading
 import logging
 import time
+import json
 
 import numpy as np
 
@@ -17,15 +18,26 @@ class Listener(tweepy.StreamListener):
     tp_queue: Text processor queue 
     '''
 
-    def __init__(self, tp_queue, stoprequest, kw_queue):
+    def __init__(self, tp_queue, stoprequest, kw_queue, limit_queue):
         super(Listener, self).__init__()
         self.tp_queue = tp_queue
         self.stoprequest = stoprequest
         self.keyword_queue = kw_queue
+        self.limit_queue = limit_queue
 
-    def on_status(self, status):
-        logging.info("Received status form streaming API")
-        status = self.filter_status(status) 
+    def on_data(self, data):
+        logging.info('Received data')
+        doc = json.loads(data.strip('\n'))
+        if 'limit' in doc:
+            logging.info('Is limit message')
+            self.limit_queue.put(doc)
+            return True
+        if 'delete' in doc:
+            logging.info('Is delete message')
+            return True
+
+        logging.info('Is status')
+        status = self.filter_status(doc)
         if status is None:
             logging.info("Removed by user filter")
             return True
@@ -35,6 +47,7 @@ class Listener(tweepy.StreamListener):
             return True
 
     def on_error(self, status):
+        print(status)
         return False
 
     def amend_status(self, status):
@@ -53,7 +66,6 @@ class Listener(tweepy.StreamListener):
         Additional filters to remove statuses. Also converts tweepy Status
         object to dictionary.
         '''
-        status = status._json
         return status
 
 class Streamer(threading.Thread):
@@ -70,7 +82,7 @@ class Streamer(threading.Thread):
     kw_queue: queue for adding keywords
     '''
     def __init__(self, keywords, credentials, tp_queue, filter_params, 
-                 kw_queue, name=None):
+                 kw_queue, limit_queue, name=None):
         super(Streamer, self).__init__(name=name)
         self.tp_queue = tp_queue
         self.stoprequest = threading.Event()
@@ -82,13 +94,15 @@ class Streamer(threading.Thread):
                                         credentials['consumer_secret'])
         self.auth.set_access_token(credentials['access_token'],
                                    credentials['access_token_secret'])
+        self.limit_queue = limit_queue
     def run(self):
         
         while not self.stoprequest.isSet():
             logging.info('Ready!')
             logging.info(f'Tracking: {self.keywords}')
             time.sleep(0.05)
-            lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue)
+            lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue,
+                           self.limit_queue)
             stream = tweepy.Stream(auth=self.auth, listener=lis)
             stream.filter(track=list(self.keywords), **self.filter_params, 
                           async=True)

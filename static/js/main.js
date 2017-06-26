@@ -76,45 +76,13 @@ $(document).ready(function() {
         return(false);
     });
 
-    socket.on('db_report', function(msg) {
-        console.log('Received db report');
-        // Get report container
-        var stats_list = document.getElementById("stats");
-        var suggestions_list = document.getElementById("suggestions");
+    socket.on("db_report", function(msg) {
+        console.log("Received db report");
+        var data = msg["data"];
+        $("#rate").html(data["rate"] + "/s");
+        $("#total").html(data["total_count"]);
+        $("#missed").html(data["missed"]);
 
-        // Remove all old content
-        while (stats_list.firstChild) {
-            stats_list.removeChild(stats_list.firstChild);
-        }
-        while (suggestions_list.firstChild) {
-            suggestions_list.removeChild(suggestions_list.firstChild);
-        }
-        // Add new content
-        var stats = msg['data']
-
-        for (var key in stats) {
-            if(key == "mif") {
-                continue
-            }
-            if (stats.hasOwnProperty(key)) {
-                var node = document.createElement('li');
-                node.className += 'list-group-item';
-                var textnode = document.createTextNode(key + ": " + stats[key]);
-                node.appendChild(textnode);
-                stats_list.appendChild(node);
-            }
-        }
-        var suggestions = msg['data']['mif'];
-        if(suggestions != null) {
-            for(var i = 0; i < suggestions.length; i++) {
-                var suggestion = suggestions[i];
-                var node = document.createElement('li');
-                node.className += 'list-group-item';
-                var textnode = document.createTextNode(suggestion);
-                node.appendChild(textnode);
-                suggestions_list.appendChild(node);
-            }
-        }
     });
 
     // Handlers for the different forms in the page.

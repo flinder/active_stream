@@ -1,3 +1,4 @@
+from gevent import monkey; monkey.patch_all()
 import queue
 import logging
 import sys
@@ -10,7 +11,6 @@ from gensim import corpora
 from flask import Flask, render_template, session, request
 from flask_socketio import SocketIO, emit, join_room, leave_room, \
     close_room, rooms, disconnect
-from gevent import monkey; monkey.patch_all()
 
 # Custom imports
 sys.path.append('active_stream/')
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     no_api = False                # Set to True if no API connection available
                                   # in this case fake 'tweets' are generated
     seed_keywords = []        # Seed keywords
-    BUF_SIZE = 100                # Buffer size of queues
+    BUF_SIZE = 1000                # Buffer size of queues
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
     filters = {'languages': ['en'], 'locations': []}
@@ -99,7 +99,8 @@ if __name__ == '__main__':
     te = threading.Event() 
     d = corpora.Dictionary()
     mif = queue.Queue(1)
-    keyword_queue = queue.Queue(100)
+    keyword_queue = queue.Queue(BUF_SIZE)
+    lim_queue = queue.Queue(BUF_SIZE)
 
     # Clear database
     db.drop()
@@ -107,7 +108,8 @@ if __name__ == '__main__':
     # Set up logging
     logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s (%(threadName)s) %(message)s',
-                    filename='debug.log') 
+                    filename='debug.log'
+                    ) 
 
     logging.info('\n'*5)
     logging.info('*'*10 + 'ACTIVE STREAM' + '*'*10)
@@ -121,14 +123,16 @@ if __name__ == '__main__':
     streamer = Streamer(name='Streamer', keywords=seed_keywords,
                         credentials=credentials['coll_1'], 
                         tp_queue=text_processor_queue,  
-                        filter_params=filters, kw_queue=keyword_queue)
+                        filter_params=filters, kw_queue=keyword_queue,
+                        limit_queue=lim_queue)
     text_processor = TextProcessor(name='Text Processor', database=db,
                                    tp_queue=text_processor_queue, 
                                    dictionary=d)
     annotator = Annotator(name='Annotator', database=db, train_event=te, 
                           annotation_response=annot_resp, socket=socketio)
     monitor = Monitor(name='Monitor', database=db, socket=socketio, 
-                      most_important_features=mif, stream=streamer)
+                      most_important_features=mif, stream=streamer,
+                      limit_queue=lim_queue)
     classifier = Classifier(name='Classifier', database=db, model=model_queue,
                             dictionary=d)
     trainer = Trainer(name='Trainer', 

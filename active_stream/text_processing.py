@@ -109,7 +109,6 @@ class TextProcessor(threading.Thread):
         status['bow'] = self.dictionary.doc2bow(info, allow_update=True)
         l_1 = len(self.dictionary)
         status['dict_size'] = l_1
-        logging.info(f'Dictinoary size is now: {l_1}')
 
         # Get id -> tokn mapping
         if l_1 > l_0:
