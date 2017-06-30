@@ -89,6 +89,7 @@ if __name__ == '__main__':
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
     filters = {'languages': ['en'], 'locations': []}
+    n_before_train = 1
     # =========================================================================== 
     
     # Set up data structures
@@ -129,12 +130,13 @@ if __name__ == '__main__':
                                    tp_queue=text_processor_queue, 
                                    dictionary=d)
     annotator = Annotator(name='Annotator', database=db, train_event=te, 
-                          annotation_response=annot_resp, socket=socketio)
-    monitor = Monitor(name='Monitor', database=db, socket=socketio, 
-                      most_important_features=mif, stream=streamer,
-                      limit_queue=lim_queue)
+                          annotation_response=annot_resp, socket=socketio,
+                          train_threshold=n_before_train)
     classifier = Classifier(name='Classifier', database=db, model=model_queue,
                             dictionary=d)
+    monitor = Monitor(name='Monitor', database=db, socket=socketio, 
+                      most_important_features=mif, stream=streamer,
+                      limit_queue=lim_queue, clf=classifier)
     trainer = Trainer(name='Trainer', 
                       clf=SGDClassifier(loss='log', penalty='elasticnet'), 
                       database=db, model=model_queue, train_trigger=te,

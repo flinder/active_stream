@@ -51,6 +51,7 @@ class Classifier(threading.Thread):
         self.batchsize = batchsize
         self.model_queue = model
         self.dictionary = dictionary
+        self.clf_version = 0
 
 
     def run(self):
@@ -59,8 +60,9 @@ class Classifier(threading.Thread):
         while not self.stoprequest.isSet():
 
             if not self.model_queue.empty():
-                logging.info('Received new model')
+                logging.info(f'Received new model (version {self.clf_version}')
                 self.clf = self.model_queue.get()
+                self.clf_version += 1
                 to_classify = self.database.find({'manual_relevant': None})
 
             else:
@@ -122,8 +124,9 @@ class Classifier(threading.Thread):
             bulk.find({'_id': status['_id']}).update(
                       {"$set":{'probability_relevant': prob,
                                'classifier_relevant': clf_rel,
-                               'annotation_priority': ap}})
- 
+                               'annotation_priority': ap,
+                               'clf_version': self.clf_version}})
+
         msg = bulk.execute() 
 
     def join(self, timeout=None):
@@ -162,6 +165,7 @@ class Trainer(threading.Thread):
         self.database = database
         self.dictionary = dictionary
         self.mif_queue = most_important_features
+        self.clf_version = 0
 
     def train_model(self):
         '''
@@ -192,6 +196,7 @@ class Trainer(threading.Thread):
         self.mif_queue.put(mif)
 
         # Pass model to classifier
+        self.clf_version += 1
         self.model_queue.put(self.clf)
         
     def run(self):
@@ -200,7 +205,7 @@ class Trainer(threading.Thread):
         while not self.stoprequest.isSet():
         
             if self.trigger.isSet():
-                logging.info('Training new model')
+                logging.info(f'Training new model (version {self.clf_version}')
                 self.train_model()
                 self.trigger.clear()
             else:

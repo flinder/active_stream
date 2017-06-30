@@ -82,6 +82,18 @@ $(document).ready(function() {
         $("#rate").html(data["rate"] + "/s");
         $("#total").html(data["total_count"]);
         $("#missed").html(data["missed"]);
+        $("#annotated").html(data["annotated"]);
+        $("#performance").html(data["training_started"].toString());
+        $("#classified").html(data["classified"] + "%");
+        var suggestions = data["suggested_features"];
+        if (suggestions != null) {
+            $("#suggestions").empty();
+            for (var i = 0; i < suggestions.length; i++) {
+                $("#suggestions").append('<li class="list-group-item">' +
+                                         suggestions[i] + "</li>");
+            }
+        }
+        
 
     });
 

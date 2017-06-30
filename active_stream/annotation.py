@@ -38,6 +38,7 @@ class Annotator(threading.Thread):
         self.annotation_response = annotation_response
         self.socket = socket
         self.annotated_text = {}
+        self.n_trainer_triggered = 0
 
     def run(self):
         logging.info('Ready!')
@@ -105,12 +106,15 @@ class Annotator(threading.Thread):
                         {'_id': status['_id']}, 
                         {'$set': {'manual_relevant': out,
                                   'probability_relevant': int(out),
-                                  'annotation_priority': None}}
+                                  'annotation_priority': None,
+                                  'clf_version': float('inf')}}
                         )
                 # Trigger trainer if necessary
-                if (self.n_positive >= self.train_threshold
-                    and self.n_negative >= self.train_threshold):
+                threshold = (self.n_trainer_triggered+1) * self.train_threshold
+                if (self.n_positive > threshold and 
+                    self.n_negative > threshold):
                     self.train.set()
+                    self.n_trainer_triggered += 1
 
                 
         logging.info('Stopped')

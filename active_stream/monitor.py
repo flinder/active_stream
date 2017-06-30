@@ -1,6 +1,7 @@
 import threading
 import logging
 import queue
+import numpy as np
 
 from time import sleep
 
@@ -21,7 +22,7 @@ class Monitor(threading.Thread):
     '''
 
     def __init__(self, database, socket, most_important_features, stream, 
-                 limit_queue, name=None):
+                 limit_queue, clf, name=None):
         super(Monitor, self).__init__(name=name)
         self.database = database
         self.stoprequest = threading.Event()
@@ -31,50 +32,63 @@ class Monitor(threading.Thread):
         self.mif = None
         self.streamer = stream
         self.last_count = 0
+        self.clf = clf
+        self.counts = []
+        self.missed = 0
     
     def run(self):
         logging.info('Ready!')
         while not self.stoprequest.isSet():
-            stats = self.get_stats()
-            if not self.mif_queue.empty():
-                self.mif = self.mif_queue.get()
-            stats['mif'] = self.mif
-            self.socket.emit('db_report', {'data': stats})
+            self.socket.emit('db_report', {'data': self.get_stats()})
             sleep(1)
-        
         logging.info('Stopped')
 
     def get_stats(self):
+
         d = self.database
         n_total = d.count()
-        rate = n_total - self.last_count 
-        self.last_count = n_total
-        missed = 0
+        
+        # Calculate average per second rate for last minute
+        self.counts.append(n_total)
+        n_counts = len(self.counts)
+        if n_counts > 1:
+            avg_rate = round(np.mean(np.diff(np.array(self.counts))), 1)
+        else:
+            avg_rate = np.nan
+
+        if n_counts > 60:
+            diff = n_counts - 60
+            del self.counts[:diff]
+            
+        # Get number of missed tweets
         if not self.limit_queue.empty():
             msg = self.limit_queue.get()
-            missed = msg['limit']['track']
+            self.missed += msg['limit']['track']
+        if not self.mif_queue.empty():
+            self.mif = self.mif_queue.get()
             
         n_annotated = d.count({'manual_relevant': {'$ne': None}})
-        n_annotated_p = d.count({'manual_relevant': True})
-        n_annotated_n = d.count({'manual_relevant': False})
-
-        n_classified = d.count({'probability_relevant': {'$ne': None}})
-        n_classified_p = d.count({'classifier_relevant': True})
-        n_classified_n = d.count({'classifier_relevant': False})
+        current_clf_version = self.clf.clf_version
+        n_classified = d.count({'probability_relevant': {'$ne': None},
+                                'clf_version': {'$gte': current_clf_version}})
+        try:
+            #perc_classified = round(n_classified / n_total, 1)
+            perc_classified = round((n_classified*100) / n_total, 1)
+        except ZeroDivisionError:
+            perc_classified = 0
         
+        if current_clf_version > 0:
+            training_started = True
+        else:
+            training_started = False
+
         return {'total_count': n_total,
-                'rate': rate,
-                'missed': missed}
-                #'percentage_annotated': round(n_annotated * 100/ n_total, 3),
-                #'n_annotated_+': n_annotated_p,
-                #'n_annotated_-': n_annotated_n,
-                #'percentage_classified': round(n_classified * 100/ n_total, 3) ,
-                #'percentage_classified_+': round(n_classified_p * 100/ n_total, 
-                #                                 3),
-                #'percentage_classified_-': round(n_classified_n * 100/ n_total, 
-                #                                 3),
-                #'keywords': list(self.streamer.keywords)
-                #}
+                'rate': avg_rate,
+                'missed': self.missed,
+                'annotated': n_annotated,
+                'classified': perc_classified,
+                'training_started': training_started,
+                'suggested_features': self.mif}
 
     def join(self, timeout=None):
         self.stoprequest.set()

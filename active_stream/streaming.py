@@ -58,6 +58,7 @@ class Listener(tweepy.StreamListener):
         status['manual_relevant'] = None
         status['probability_relevant'] = None
         status['annotation_priority'] = 0
+        status['clf_version'] = -1
 
         return status
 
