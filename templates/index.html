@@ -10,12 +10,29 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <!-- Latest compiled JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
-    <link rel="stylesheet" type="text/css" href="../static/css/custom.css">
-    <script sync src="https://platform.twitter.com/widgets.js"></script>
+    <!-- D3 -->
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <!-- Socket IO -->
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+    <!-- Twitter widget library -->
+    <script sync src="https://platform.twitter.com/widgets.js"></script>
+
+
+    <!-- Custom js -->
+    <!-- Time series visualization -->
+    <script type="text/javascript" src="{{ url_for('static', filename='js/real_time_series.js') }}"></script>
+    <!--
+    <script type="text/javascript" src="../static/js/real_time_series.js"></script>
+    -->
+
+    <!-- Main javascript -->
     <script type="text/javascript" src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Custom CSS -->
+    <!--
+    <link rel="stylesheet" type="text/css" href="../static/css/custom.css">
+    -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
 
 </head>
 
@@ -173,8 +190,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">More Stuff</div>
                     <div class="panel-body">
-                        <ul class="list-group">
-                        </ul>
+                        <div class="graph"></div>
                     </div>
                 </div>
             </div>

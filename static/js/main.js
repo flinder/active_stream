@@ -1,4 +1,5 @@
 $(document).ready(function() {
+    
     // Connect to the Socket.IO server.
     // The connection URL has the following format:
     //     http[s]://<domain>:<port>[/<namespace>]
@@ -78,7 +79,8 @@ $(document).ready(function() {
 
     socket.on("db_report", function(msg) {
         console.log("Received db report");
-        var data = msg["data"];
+        monitor_data = msg["data"];
+        var data = monitor_data;
         $("#rate").html(data["rate"] + "/s");
         $("#total").html(data["total_count"]);
         $("#missed").html(data["missed"]);

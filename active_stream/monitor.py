@@ -56,8 +56,8 @@ class Monitor(threading.Thread):
         else:
             avg_rate = np.nan
 
-        if n_counts > 60:
-            diff = n_counts - 60
+        if n_counts > 5:
+            diff = n_counts - 5
             del self.counts[:diff]
             
         # Get number of missed tweets
