@@ -85,7 +85,6 @@ $(document).ready(function() {
         $("#total").html(data["total_count"]);
         $("#missed").html(data["missed"]);
         $("#annotated").html(data["annotated"]);
-        $("#performance").html(data["training_started"].toString());
         $("#classified").html(data["classified"] + "%");
         var suggestions = data["suggested_features"];
         if (suggestions != null) {
@@ -95,7 +94,8 @@ $(document).ready(function() {
                                          suggestions[i] + "</li>");
             }
         }
-        
+        $("#performance").html(data['precision'] + '/' + data['recall'] + '/' +
+                               data['f1']);
 
     });
 

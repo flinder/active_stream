@@ -198,6 +198,7 @@ class Trainer(threading.Thread):
         # Pass model to classifier
         self.clf_version += 1
         self.model_queue.put(self.clf)
+
         
     def run(self):
         logging.info('Ready!')

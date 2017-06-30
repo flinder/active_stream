@@ -136,7 +136,7 @@ if __name__ == '__main__':
                             dictionary=d)
     monitor = Monitor(name='Monitor', database=db, socket=socketio, 
                       most_important_features=mif, stream=streamer,
-                      limit_queue=lim_queue, clf=classifier)
+                      limit_queue=lim_queue, clf=classifier, annot=annotator)
     trainer = Trainer(name='Trainer', 
                       clf=SGDClassifier(loss='log', penalty='elasticnet'), 
                       database=db, model=model_queue, train_trigger=te,

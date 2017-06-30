@@ -22,7 +22,7 @@ class Monitor(threading.Thread):
     '''
 
     def __init__(self, database, socket, most_important_features, stream, 
-                 limit_queue, clf, name=None):
+                 limit_queue, clf, annot, name=None):
         super(Monitor, self).__init__(name=name)
         self.database = database
         self.stoprequest = threading.Event()
@@ -33,6 +33,7 @@ class Monitor(threading.Thread):
         self.streamer = stream
         self.last_count = 0
         self.clf = clf
+        self.annotator = annot
         self.counts = []
         self.missed = 0
     
@@ -81,14 +82,38 @@ class Monitor(threading.Thread):
             training_started = True
         else:
             training_started = False
-
+        
+        metrics = self.get_clf_metrics()
+        logging.info(metrics)
         return {'total_count': n_total,
                 'rate': avg_rate,
                 'missed': self.missed,
                 'annotated': n_annotated,
                 'classified': perc_classified,
                 'training_started': training_started,
-                'suggested_features': self.mif}
+                'suggested_features': self.mif,
+                'f1': metrics['f1_score'],
+                'precision': metrics['precision'],
+                'recall': metrics['recall']
+                }
+
+    def get_clf_metrics(self):
+        performance = self.annotator.clf_performance
+        tp = performance['true_positive']
+        fp = performance['false_positive']
+        fn = performance['false_negative']
+        tn = performance['true_negative']
+        out = {'precision': 0, 'recall': 0, 'f1_score': 0}
+        if tp == 0 and fp == 0:
+            return out
+        if tp == 0 and fn == 0:
+            return out
+        out['precision'] = round(tp / (tp + fp), 1)
+        out['recall'] = round(tp / (tp + fn), 1)
+        out['f1_score'] = round((2*tp) / (2*tp + fn + fp), 1)
+
+        return out
+
 
     def join(self, timeout=None):
         self.stoprequest.set()

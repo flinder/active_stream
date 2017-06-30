@@ -39,6 +39,13 @@ class Annotator(threading.Thread):
         self.socket = socket
         self.annotated_text = {}
         self.n_trainer_triggered = 0
+        self.clf_performance = {
+                'true_positive': 0,
+                'true_negative': 0,
+                'false_positive': 0,
+                'false_negative': 0
+                }
+        
 
     def run(self):
         logging.info('Ready!')
@@ -101,6 +108,11 @@ class Annotator(threading.Thread):
                 # Store the text in memory to not ask twice
                 self.annotated_text[status['text']] = out
 
+                # Evaluate classifier
+                if self.n_trainer_triggered > 0:
+                    guess = bool(round(status['probability_relevant'], 0))
+                    self.clf_performance[self.evaluate_guess(guess, out)] += 1
+
                 # Update record in DB
                 msg = self.database.update(
                         {'_id': status['_id']}, 
@@ -109,6 +121,7 @@ class Annotator(threading.Thread):
                                   'annotation_priority': None,
                                   'clf_version': float('inf')}}
                         )
+
                 # Trigger trainer if necessary
                 threshold = (self.n_trainer_triggered+1) * self.train_threshold
                 if (self.n_positive > threshold and 
@@ -118,6 +131,18 @@ class Annotator(threading.Thread):
 
                 
         logging.info('Stopped')
+
+    def evaluate_guess(self, guess, annotation):
+        if guess and annotation:
+            return 'true_positive'
+        if not guess and not annotation:
+            return 'true_negative'
+        if not guess and annotation:
+            return 'false_negative'
+        if guess and not annotation:
+            return 'false_positive'
+
+
 
 
     def join(self, timeout=None):
