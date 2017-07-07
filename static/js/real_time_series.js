@@ -3,14 +3,16 @@
 var monitor_data = null;
 $(document).ready(function() {
 
-    var limit = 60 * 1,
-        duration = 2000,
+    var limit = 60 * 5,
+        duration = 700,
         now = new Date(Date.now() - duration)
 
-    var bb = document.querySelector ('#rate_graph')
+    var bb = document.querySelector ('#rate_graph_panel')
                         .getBoundingClientRect(),
-        width = bb.width,
-        height = 200;
+        width = bb.width*0.9,
+        height = bb.height*0.7,
+        margins = {'top': 0.05*bb.height,
+                   'left': 0.05*bb.width}
 
     var max_rate = 1;
 
@@ -29,7 +31,7 @@ $(document).ready(function() {
         .range([0, width])
 
     var y = d3.scale.linear()
-        .domain([0, max_rate])
+        .domain([0, max_rate*1.1])
         .range([height, 0])
 
     var line = d3.svg.line()
@@ -46,20 +48,23 @@ $(document).ready(function() {
         .attr('width', width)
         .attr('height', height + 50);
 
+    svg = svg.append('g')
+        .attr("transform", "translate(" + margins.left + "," + margins.top + ")");
+
     var x_axis = svg.append('g')
         .attr('class', 'x axis')
         .attr('transform', 'translate(0,' + height + ')')
         .call(x.axis = d3.svg.axis().scale(x).orient('bottom'));
     
-    var y_axis = d3.svg.axis()
+    y.axis = d3.svg.axis()
         .scale(y)
         .orient('left')
-        .ticks(5);
+        .ticks(3);
 
-    svg.append('g')
+    var y_axis = svg.append('g')
         .attr('class', 'y axis')
-        .call(y_axis);
-
+        //.attr('transform', 'translate(' + 0.03*width + ',0)')
+        .call(y.axis);
 
     var paths = svg.append('g');
 
@@ -87,10 +92,6 @@ $(document).ready(function() {
             group.data.push(monitor_data['rate']);
             max_rate = Math.max.apply(Math, group.data);
             y.domain([0, max_rate]);
-            svg.append('g')
-                .attr('class', 'y axis')
-                .call(y_axis);
-
         } else {
             group.data.push(0);
         }

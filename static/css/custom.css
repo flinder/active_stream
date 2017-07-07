@@ -46,3 +46,8 @@ body {
     stroke: black;
     stroke-width: 1.5;
 }
+
+.graph {
+    padding: 10px;
+}
+
