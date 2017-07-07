@@ -2,12 +2,15 @@
 // http://bl.ocks.org/simenbrekken/6634070
 var monitor_data = null;
 $(document).ready(function() {
+
     var limit = 60 * 1,
-        duration = 750,
+        duration = 2000,
         now = new Date(Date.now() - duration)
 
-    var width = 500,
-        height = 200
+    var bb = document.querySelector ('#rate_graph')
+                        .getBoundingClientRect(),
+        width = bb.width,
+        height = 200;
 
     var max_rate = 1;
 
@@ -19,27 +22,6 @@ $(document).ready(function() {
                 return 0
             })
         }
-        //current: {
-        //    value: 0,
-        //    color: 'orange',
-        //    data: d3.range(limit).map(function() {
-        //        return 0
-        //    })
-        //},
-        //target: {
-        //    value: 0,
-        //    color: 'green',
-        //    data: d3.range(limit).map(function() {
-        //        return 0
-        //    })
-        //},
-        //output: {
-        //    value: 0,
-        //    color: 'grey',
-        //    data: d3.range(limit).map(function() {
-        //        return 0
-        //    })
-        //}
     }
 
     var x = d3.time.scale()
@@ -62,21 +44,31 @@ $(document).ready(function() {
     var svg = d3.select('.graph').append('svg')
         .attr('class', 'chart')
         .attr('width', width)
-        .attr('height', height + 50)
+        .attr('height', height + 50);
 
-    var axis = svg.append('g')
+    var x_axis = svg.append('g')
         .attr('class', 'x axis')
         .attr('transform', 'translate(0,' + height + ')')
-        .call(x.axis = d3.svg.axis().scale(x).orient('bottom'))
+        .call(x.axis = d3.svg.axis().scale(x).orient('bottom'));
+    
+    var y_axis = d3.svg.axis()
+        .scale(y)
+        .orient('left')
+        .ticks(5);
 
-    var paths = svg.append('g')
+    svg.append('g')
+        .attr('class', 'y axis')
+        .call(y_axis);
+
+
+    var paths = svg.append('g');
 
     for (var name in groups) {
         var group = groups[name]
         group.path = paths.append('path')
             .data([group.data])
             .attr('class', name + ' group')
-            .style('stroke', group.color)
+            .style('stroke', group.color);
     }
 
     function tick() {
@@ -94,9 +86,11 @@ $(document).ready(function() {
         if (monitor_data != null) {
             group.data.push(monitor_data['rate']);
             max_rate = Math.max.apply(Math, group.data);
-            y = d3.scale.linear()
-                        .domain([0, max_rate])
-                        .range([height, 0])
+            y.domain([0, max_rate]);
+            svg.append('g')
+                .attr('class', 'y axis')
+                .call(y_axis);
+
         } else {
             group.data.push(0);
         }
@@ -107,7 +101,7 @@ $(document).ready(function() {
         x.domain([now - (limit - 2) * duration, now - duration]);
 
         // Slide x-axis left
-        axis.transition()
+        x_axis.transition()
             .duration(duration)
             .ease('linear')
             .call(x.axis)

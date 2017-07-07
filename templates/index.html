@@ -20,19 +20,19 @@
 
     <!-- Custom js -->
     <!-- Time series visualization -->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/real_time_series.js') }}"></script>
     <!--
-    <script type="text/javascript" src="../static/js/real_time_series.js"></script>
+    <script type="text/javascript" src="{{ url_for('static', filename='js/real_time_series.js') }}"></script>
     -->
+    <script type="text/javascript" src="../static/js/real_time_series.js"></script>
 
     <!-- Main javascript -->
     <script type="text/javascript" src="{{ url_for('static', filename='js/main.js') }}"></script>
 
     <!-- Custom CSS -->
-    <!--
     <link rel="stylesheet" type="text/css" href="../static/css/custom.css">
-    -->
+    <!--
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
+    -->
 
 </head>
 
@@ -188,9 +188,9 @@
             <!-- Additional container -->
             <div class="col-lg-12">
                 <div class="panel panel-default">
-                    <div class="panel-heading">More Stuff</div>
+                    <div class="panel-heading">Rate Tweets/second</div>
                     <div class="panel-body">
-                        <div class="graph"></div>
+                        <div class="graph" id="rate_graph"></div>
                     </div>
                 </div>
             </div>
