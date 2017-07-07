@@ -1,5 +1,5 @@
 from gevent import monkey; monkey.patch_all()
-import queue
+import queue 
 import logging
 import sys
 import time 
@@ -102,6 +102,7 @@ if __name__ == '__main__':
     mif = queue.Queue(1)
     keyword_queue = queue.Queue(BUF_SIZE)
     lim_queue = queue.Queue(BUF_SIZE)
+    mess_queue = queue.Queue(BUF_SIZE)
 
     # Clear database
     db.drop()
@@ -125,7 +126,7 @@ if __name__ == '__main__':
                         credentials=credentials['coll_1'], 
                         tp_queue=text_processor_queue,  
                         filter_params=filters, kw_queue=keyword_queue,
-                        limit_queue=lim_queue)
+                        limit_queue=lim_queue, message_queue=mess_queue)
     text_processor = TextProcessor(name='Text Processor', database=db,
                                    tp_queue=text_processor_queue, 
                                    dictionary=d)
@@ -136,11 +137,13 @@ if __name__ == '__main__':
                             dictionary=d)
     monitor = Monitor(name='Monitor', database=db, socket=socketio, 
                       most_important_features=mif, stream=streamer,
-                      limit_queue=lim_queue, clf=classifier, annot=annotator)
+                      limit_queue=lim_queue, clf=classifier, annot=annotator,
+                      message_queue=mess_queue)
     trainer = Trainer(name='Trainer', 
                       clf=SGDClassifier(loss='log', penalty='elasticnet'), 
                       database=db, model=model_queue, train_trigger=te,
-                      dictionary=d, most_important_features=mif)
+                      dictionary=d, most_important_features=mif, 
+                      message_queue = mess_queue, stream=streamer)
 
     threads = [streamer, 
                text_processor, 

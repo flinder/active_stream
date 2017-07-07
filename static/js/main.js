@@ -1,3 +1,9 @@
+function user_message(text) {
+    $("#messages").prepend('<li class="list-group-item">' +
+                           text + "</li>");
+}
+
+
 $(document).ready(function() {
     
     // Connect to the Socket.IO server.
@@ -5,7 +11,8 @@ $(document).ready(function() {
     //     http[s]://<domain>:<port>[/<namespace>]
     var socket = io.connect(location.protocol + '//' + document.domain + ':' + 
                             location.port);
-    
+    var messages = []; 
+
     socket.emit('refresh');
     // Display active keywords
     socket.on('keywords', function(msg) {
@@ -56,6 +63,7 @@ $(document).ready(function() {
 
     // Keyword management code
     $("form#main_input_box").submit(function(event){
+        user_message("Adding keyword. Changes might take up to 10s");
         event.preventDefault();
         var deleteButton = 
             "<button class='delete btn btn-danger'>Remove</button>";
@@ -70,6 +78,7 @@ $(document).ready(function() {
     });
 
     $(".list_of_items").on("click", "button.delete", function(){
+        user_message("Removing keyword. Changes might take up to 10s");
         var item = $(this).closest("li")
         var word = item.find('#word').text();
         socket.emit('remove_keyword', {data: word});
@@ -78,7 +87,6 @@ $(document).ready(function() {
     });
 
     socket.on("db_report", function(msg) {
-        console.log("Received db report");
         monitor_data = msg["data"];
         var data = monitor_data;
         $("#rate").html(data["rate"] + "/s");
@@ -92,6 +100,12 @@ $(document).ready(function() {
             for (var i = 0; i < suggestions.length; i++) {
                 $("#suggestions").append('<li class="list-group-item">' +
                                          suggestions[i] + "</li>");
+            }
+        }
+        var messages = data["messages"];
+        if (messages != null) {
+            for (var i = 0; i < messages.length; i++) {
+                user_message(messages[i]);
             }
         }
         $("#performance").html(data['precision'] + '/' + data['recall'] + '/' +

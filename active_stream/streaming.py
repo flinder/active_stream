@@ -26,20 +26,15 @@ class Listener(tweepy.StreamListener):
         self.limit_queue = limit_queue
 
     def on_data(self, data):
-        logging.info('Received data')
         doc = json.loads(data.strip('\n'))
         if 'limit' in doc:
-            logging.info('Is limit message')
             self.limit_queue.put(doc)
             return True
         if 'delete' in doc:
-            logging.info('Is delete message')
             return True
 
-        logging.info('Is status')
         status = self.filter_status(doc)
         if status is None:
-            logging.info("Removed by user filter")
             return True
         else:
             status = self.amend_status(status)
@@ -83,7 +78,7 @@ class Streamer(threading.Thread):
     kw_queue: queue for adding keywords
     '''
     def __init__(self, keywords, credentials, tp_queue, filter_params, 
-                 kw_queue, limit_queue, name=None):
+                 kw_queue, limit_queue, message_queue, name=None):
         super(Streamer, self).__init__(name=name)
         self.tp_queue = tp_queue
         self.stoprequest = threading.Event()
@@ -96,37 +91,59 @@ class Streamer(threading.Thread):
         self.auth.set_access_token(credentials['access_token'],
                                    credentials['access_token_secret'])
         self.limit_queue = limit_queue
+        self.message_queue = message_queue
+        self.last_connection = 0
+
     def run(self):
         
         while not self.stoprequest.isSet():
             logging.info('Ready!')
-            logging.info(f'Tracking: {self.keywords}')
             time.sleep(0.05)
-            lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue,
-                           self.limit_queue)
-            stream = tweepy.Stream(auth=self.auth, listener=lis)
-            stream.filter(track=list(self.keywords), **self.filter_params, 
-                          async=True)
+
+            if len(self.keywords) > 0:
+                logging.info(f'Tracking: {self.keywords}')
+                lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue,
+                               self.limit_queue)
+                self.last_connection = time.time()
+                stream = tweepy.Stream(auth=self.auth, listener=lis)
+                stream.filter(track=list(self.keywords), **self.filter_params, 
+                              async=True)
+                self.last_connection = time.time()
 
             while True:
                 if self.stoprequest.isSet():
                     stream.disconnect()
                     break
+                
+                # Get all new additions / deletions
                 if not self.keyword_queue.empty():
-                    # Check if add or remove
-                    request = self.keyword_queue.get()
-                    word = request['word']
-                    if request['add']:
-                        logging.info(f'Adding new keyword to stream: {word}')
-                        self.keywords.update([word])
-                        stream.disconnect()
-                    else:
-                        logging.info(f'Removing keyword from stream: {word}')
-                        self.keywords.remove(word)
-                        stream.disconnect()
-                    break
+                    requests = []
+                    while not self.keyword_queue.empty():
+                        requests.append(self.keyword_queue.get())
+                    
+                    # Get consolidated list
+                    for request in requests:
+                        word = request['word']
+                        if request['add']:
+                            logging.info(f'Adding new keyword to stream: {word}')
+                            self.keywords.update([word])
+                        else:
+                            logging.info(f'Removing keyword from stream: {word}')
+                            self.keywords.remove(word)
 
-                time.sleep(0.05)
+                    # Disconnect stream and break to jump to reconnect
+                    try:
+                        stream.disconnect()
+                    except UnboundLocalError:
+                        pass
+                    self.message_queue.put('Keyword changes applied!')
+                    break
+                
+                time_since = time.time() - self.last_connection
+                if time_since < 10:
+                    time.sleep(10 - time_since)
+                else:
+                    time.sleep(0.1)
 
         logging.info('Leaving stream')
 

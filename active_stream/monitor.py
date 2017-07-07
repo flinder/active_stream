@@ -22,7 +22,7 @@ class Monitor(threading.Thread):
     '''
 
     def __init__(self, database, socket, most_important_features, stream, 
-                 limit_queue, clf, annot, name=None):
+                 limit_queue, clf, annot, message_queue, name=None):
         super(Monitor, self).__init__(name=name)
         self.database = database
         self.stoprequest = threading.Event()
@@ -36,6 +36,7 @@ class Monitor(threading.Thread):
         self.annotator = annot
         self.counts = []
         self.missed = 0
+        self.message_queue = message_queue
     
     def run(self):
         logging.info('Ready!')
@@ -62,7 +63,7 @@ class Monitor(threading.Thread):
             del self.counts[:diff]
             
         # Get number of missed tweets
-        if not self.limit_queue.empty():
+        while not self.limit_queue.empty():
             msg = self.limit_queue.get()
             self.missed += msg['limit']['track']
         if not self.mif_queue.empty():
@@ -83,8 +84,12 @@ class Monitor(threading.Thread):
         else:
             training_started = False
         
+        # Get all new messages
+        messages = []
+        while not self.message_queue.empty():
+            messages.append(self.message_queue.get())
+        
         metrics = self.get_clf_metrics()
-        logging.info(metrics)
         return {'total_count': n_total,
                 'rate': avg_rate,
                 'missed': self.missed,
@@ -94,7 +99,8 @@ class Monitor(threading.Thread):
                 'suggested_features': self.mif,
                 'f1': metrics['f1_score'],
                 'precision': metrics['precision'],
-                'recall': metrics['recall']
+                'recall': metrics['recall'],
+                'messages': messages
                 }
 
     def get_clf_metrics(self):

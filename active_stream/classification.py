@@ -156,7 +156,7 @@ class Trainer(threading.Thread):
     '''
 
     def __init__(self, database, model, clf, train_trigger, dictionary, 
-                 most_important_features, name=None):
+                 most_important_features, message_queue, stream, name=None):
         super(Trainer, self).__init__(name=name)
         self.clf = clf
         self.model_queue = model
@@ -166,6 +166,8 @@ class Trainer(threading.Thread):
         self.dictionary = dictionary
         self.mif_queue = most_important_features
         self.clf_version = 0
+        self.message_queue = message_queue
+        self.streamer = stream
 
     def train_model(self):
         '''
@@ -192,7 +194,15 @@ class Trainer(threading.Thread):
         mif_indices = sorted(enumerate(self.clf.coef_[0]), key=lambda x: x[1], 
                              reverse=True)
         mif_indices = [x[0] for x in mif_indices]
-        mif = [self.dictionary.id2token[id_] for id_ in mif_indices[:10]]
+        mif = []
+        for id_ in mif_indices:
+            word = self.dictionary.id2token[id_]
+            if word not in self.streamer.keywords:
+                mif.append(word)
+            else:
+                continue
+            if len(mif) == 10:
+                break
         self.mif_queue.put(mif)
 
         # Pass model to classifier
@@ -207,6 +217,7 @@ class Trainer(threading.Thread):
         
             if self.trigger.isSet():
                 logging.info(f'Training new model (version {self.clf_version}')
+                self.message_queue.put("Training new model")
                 self.train_model()
                 self.trigger.clear()
             else:
