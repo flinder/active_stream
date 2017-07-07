@@ -27,6 +27,7 @@ body {
 }
 
 .graph .axis .tick line {
+    stroke-width: 1;
     stroke: black;
 }
 
