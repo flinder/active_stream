@@ -59,7 +59,7 @@ $(document).ready(function() {
     y.axis = d3.svg.axis()
         .scale(y)
         .orient('left')
-        .ticks(3);
+        .ticks(5);
 
     var y_axis = svg.append('g')
         .attr('class', 'y axis')
@@ -92,6 +92,12 @@ $(document).ready(function() {
             group.data.push(monitor_data['rate']);
             max_rate = Math.max.apply(Math, group.data);
             y.domain([0, max_rate]);
+            y_axis.transition()
+                .duration(duration)
+                .ease('linear')
+                .call(y.axis)
+
+
         } else {
             group.data.push(0);
         }
