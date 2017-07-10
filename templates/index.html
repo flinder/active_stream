@@ -1,216 +1,197 @@
 <!DOCTYPE HTML>
 <html lang="en">
-<head>
-    <title>Active Stream</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-    <!-- jQuery library -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-    <!-- Latest compiled JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
-    <!-- D3 -->
-    <script src="http://d3js.org/d3.v3.min.js"></script>
-    <!-- Socket IO -->
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
-    <!-- Twitter widget library -->
-    <script sync src="https://platform.twitter.com/widgets.js"></script>
+    <head>
+        <title>Active Stream</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Latest compiled and minified CSS -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+        <!-- jQuery library -->
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <!-- Latest compiled JavaScript -->
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+        <!-- D3 -->
+        <script src="http://d3js.org/d3.v3.min.js"></script>
+        <!-- Socket IO -->
+        <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+        <!-- Twitter widget library -->
+        <script sync src="https://platform.twitter.com/widgets.js"></script>
 
 
-    <!-- Custom js -->
-    <!-- Time series visualization -->
-    <!--
-    <script type="text/javascript" src="{{ url_for('static', filename='js/real_time_series.js') }}"></script>
-    -->
-    <script type="text/javascript" src="../static/js/real_time_series.js"></script>
+        <!-- Custom js -->
+        <!-- Time series visualization -->
+        <script type="text/javascript" src="{{ url_for('static', filename='js/real_time_series.js') }}"></script>
+        <!--
+        <script type="text/javascript" src="../static/js/real_time_series.js"></script>
+        -->
 
-    <!-- Main javascript -->
-    <script type="text/javascript" src="{{ url_for('static', filename='js/main.js') }}"></script>
+        <!-- Main javascript -->
+        <script type="text/javascript" src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-    <!-- Custom CSS -->
-    <link rel="stylesheet" type="text/css" href="../static/css/custom.css">
-    <!--
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
-    -->
+        <!-- Custom CSS -->
+        <!--
+        <link rel="stylesheet" type="text/css" href="../static/css/custom.css">
+        -->
+        <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
 
-</head>
+    </head>
 
-<body>
-    
-    <div class="container-fluid">
-
-        <div class="row">
-            <div class="col-lg-12">
-                <h1 class="page-header">Active Stream</h1>
-            </div>
-            <!-- /.col-lg-12 -->
-        </div>
+    <body>
         
-        <div class="row">
-            <!-- Annotation container -->
-            <div class="col-lg-4">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Annotation</div>
-                    <div class="panel-body fixed-panel">
+        <div class="container-fluid">
 
-                        <div id="tweet_container">
-                            <p id="placeholder">Waiting for tweets...</p>
+
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1 class="page-header">Active Stream</h1>
+                </div>
+                <!-- /.col-lg-12 -->
+            </div>
+
+
+            
+            <div class="row">
+                
+                <!-- Annotation container -->
+                <div class="col-lg-4">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">Annotation</div>
+                        <div class="panel-body full overflow">
+
+                            <div id="tweet_container">
+                                <p id="placeholder">Waiting for tweets...</p>
+                            </div>
+                        </div>
+
+                        <div class="panel-footer">
+                            <div class="btn-group">
+                                <button id="relevant" type="button" class="btn btn-success">relevant</button>
+                                <button id="irrelevant" type="button" class="btn btn-danger">irrelevant</button>
+                                <button id="skip" type="button" class="btn btn-default">skip</button>
+                                <button id="refresh" type="button" class="btn btn-default">refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <div class="col-lg-8">
+                    <div class="row">
+
+                        <!-- Keyword Form -->
+                        <div class="col-lg-3">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Keywords
+                                </div>
+                                <div class="panel-body half overflow">
+                                    <form id="main_input_box">
+                                        <div class="pull-left">
+                                            <input type="text" class ="form-control" id="custom_textbox" name="Item" placeholder="Enter new keyword here">
+                                        </div>
+                                        <div>
+                                            <input type="submit" value="Add" class="btn btn-success">
+                                        </div>
+                                    </form>
+                                    <form>
+                                        <ol class="list-group list_of_items">
+                                        </ol>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Keyword Suggestion -->
+                        <div class="col-lg-3">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Keyword Suggestions
+                                </div>
+                                <div class="panel-body half overflow">
+                                    <ul class="list-group" id="suggestions">
+                                    </ul>
+                                </div>
+                            </div>
+
+                        </div>
+                        <!-- Stats -->
+                        <div class="col-lg-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Database Stats
+                                </div>
+                                <div class="panel-body half overflow">
+                                    <div class="panel-group">
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <div class="panel panel-info">
+                                                    <div class="panel-heading">TOTAL</div>
+                                                    <div class="panel-body">
+                                                        <div id="total" class="huge">0</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-6">
+                                                <div class="panel panel-danger">
+                                                    <div class="panel-heading">MISSED</div>
+                                                    <div class="panel-body">
+                                                        <div id="missed" class="huge">0</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-lg-6">
+                                                <div class="panel panel-success">
+                                                    <div class="panel-heading">ANNOTATED</div>
+                                                    <div class="panel-body">
+                                                        <div id="annotated" class="huge">0</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-lg-6">
+                                                <div class="panel panel-default">
+                                                    <div class="panel-heading">CLF PERFORMANCE</div>
+                                                    <div class="panel-body">
+                                                        <div id="performance" class="huge">NA</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="panel-footer">
-                        <div class="btn-group">
-                            <button id="relevant" type="button" class="btn btn-success">relevant</button>
-                            <button id="irrelevant" type="button" class="btn btn-danger">irrelevant</button>
-                            <button id="skip" type="button" class="btn btn-default">skip</button>
-                            <button id="refresh" type="button" class="btn btn-default">refresh</button>
+                    <div class="row">
+                        <!-- Rate Graph -->
+                        <div class="col-lg-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Rate Tweets/second
+                                </div>
+                                <div class="panel-body half overflow" id="rate_graph_panel">
+                                    <div class="graph"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!--  Messages -->
+                        <div class="col-lg-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">Messages</div>
+                                <div class="panel-body half overflow">
+                                    <ul class="list-group" id="messages"></ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!--Keyword container -->
-            <div class="col-lg-2">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Keywords</div>
-                    <div class="panel-body fixed-panel">
-
-                        <form id="main_input_box">
-                            <div class="pull-left">
-                                <input type="text" class ="form-control" id="custom_textbox" name="Item" placeholder="Enter new keyword here">
-                            </div>
-                                <input type="submit" value="Add" class="btn btn-success">
-                        </form>
-                        <form>
-                            <ol class="list-group list_of_items">
-                            </ol>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-
-            <!-- Suggestions container -->
-            <div class="col-lg-2">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Keyword Suggestions</div>
-                    <div class="panel-body fixed-panel">
-                        <ul class="list-group" id="suggestions">
-                        </ul>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Stats  container -->
-            <div class="col-lg-4">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Database Stats</div>
-                    <div class="panel-body fixed-panel">
-                        <!--
-                        <ul class="list-group" id="stats">
-                        </ul>
-                        -->
-                        
-                        <div class="panel-group">
-
-                            <div class="row">
-                                <div class="col-lg-6">
-                                    <div class="panel panel-info">
-                                        <div class="panel-heading">TOTAL</div>
-                                        <div class="panel-body">
-                                            <div id="total" class="huge">0</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6">
-                                    <div class="panel panel-danger">
-                                        <div class="panel-heading">MISSED</div>
-                                        <div class="panel-body">
-                                            <div id="missed" class="huge">0</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-lg-6">
-                                    <div class="panel panel-success">
-                                        <div class="panel-heading">ANNOTATED</div>
-                                        <div class="panel-body">
-                                            <div id="annotated" class="huge">0</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6">
-                                    <div class="panel panel-warning">
-                                        <div class="panel-heading">CLASSIFIED</div>
-                                        <div class="panel-body">
-                                            <div id="classified" class="huge">0%</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-lg-6">
-                                    <div class="panel panel-default">
-                                        <div class="panel-heading">CLF PERFORMANCE</div>
-                                        <div class="panel-body">
-                                            <div id="performance" class="huge">NA</div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6">
-                                    <div class="panel panel-default">
-                                        <div class="panel-heading">Rate</div>
-                                        <div class="panel-body">
-                                            <div id="rate" class="huge">0/s</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
-
-                        </div>
-
-                    </div>
-                </div>
-            </div>
-
         </div>
-
-         <div class="row">
-
-            <!-- Additional container -->
-            <div class="col-lg-6">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Rate Tweets/second</div>
-                    <div class="panel-body fixed-panel" id="rate_graph_panel">
-                        <div class="graph"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-6">
-                <div class="panel panel-default">
-                    <div class="panel-heading">Messages</div>
-                    <div class="panel-body fixed-panel">
-                        <ul class="list-group" id="messages"></ul>
-                    </div>
-                </div>
-            </div>
-
-
-
-        </div>
-
-           
-    </div>
-
-
-</body>
+    </body>
 </html>

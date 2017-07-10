@@ -1,6 +1,12 @@
-.fixed-panel {
-  min-height: 40rem;
-  max-height: 40rem;
+.full {
+  min-height: 70vh;
+  max-height: 70vh;
+}
+.half {
+  min-height: 35vh;
+  max-height: 35vh;
+}
+.overflow {
   overflow-y: scroll;
 }
 body {

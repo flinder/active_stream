@@ -49,7 +49,7 @@ $(document).ready(function() {
             tweet.textContent = "Waiting for tweets...";
         } else {
             twttr.widgets.createTweet(id, tweet, {
-                conversation : 'none',    // or all
+                conversation : 'all',    // or all
                 cards        : 'visible',  // or hidden
                 linkColor    : '#cc0000', // default is blue
                 theme        : 'light'    // or dark
