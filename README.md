@@ -31,9 +31,9 @@ co-occurence in the tweet text.
 
 ## Dependencies
 
-* >= Python 3.5
-* Non-standard Python modules: `tweepy`, `spacy`
-* Language data for `spacy` atm english only (`$ python -m spacy.en.download`)
+* Python 3.6
+* Non-standard Python modules: [tweepy](http://www.tweepy.org/), [spaCy](https://spacy.io/) and [gensim](https://radimrehurek.com/gensim/)
+* English language model for spaCy (`$ python -m spacy download en`)
 * Mongodb (listening on `localhost:27017` which is default setting when
     installing mongodb)
 
