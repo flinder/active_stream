@@ -4,7 +4,7 @@ var monitor_data = null;
 $(document).ready(function() {
 
     var limit = 60 * 5,
-        duration = 700,
+        duration = 1000,
         now = new Date(Date.now() - duration)
 
     var bb = document.querySelector ('#rate_graph_panel')

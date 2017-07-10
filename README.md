@@ -1,6 +1,9 @@
 # Active learning support for targeted Twitter stream
 
 
+![The Active Stream interface](active_stream_interface.png)
+
+
 ## About
 
 The Twitter streaming API allows to track tweets about a specific topic by
@@ -17,14 +20,14 @@ This system is aimed to build a streaming interface that allows the user to
 obtain a fine tuned stream that maximizes the number of relevant tweets
 from the stream.
 
-The system will consist of four components. Given a few user selected keywords,
+Given a set of user selected seed keywords,
 an initial stream is produced. The active learning component classifies tweets
 as relevant or not and concurrently presents tweets to the user for manual
 annotation. Only tweets that the system is most uncertain about are selected for
 manual annotation. A second component proposes new keywords based on
-co-occurence in the tweet text. The third component is an analytics engine that
-provides the user with descriptive information about the relevant tweets that
-have been collected so far (not implemented yet). 
+co-occurence in the tweet text. 
+
+
 
 ## Dependencies
 
@@ -48,12 +51,7 @@ credentials = {"coll_1": {
 }
 ```
 
-If you don't have twitter credentials or you are offline you can set `no_api = False` in the config
-section in `app.py`. The app will then generate artificial tweets that are
-sufficient for testing.
-
-
-Start the application with:
+Start the backend with:
 ```bash
 python app.py
 ```
@@ -61,4 +59,9 @@ python app.py
 Monitor status with:
 ```bash
 tail -f debug.log
+```
+
+Then open a browser and navigate to:
+```bach
+localhost:5000
 ```
