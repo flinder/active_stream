@@ -21,6 +21,10 @@ body {
   font-size: 35px;
   text-align: right;
 }
+.bigger {
+  font-size: 17px;
+  text-align: left;
+}
 .green {
     color: green;
 }

@@ -89,11 +89,9 @@ $(document).ready(function() {
     socket.on("db_report", function(msg) {
         monitor_data = msg["data"];
         var data = monitor_data;
-        $("#rate").html(data["rate"] + "/s");
         $("#total").html(data["total_count"]);
         $("#missed").html(data["missed"]);
         $("#annotated").html(data["annotated"]);
-        $("#classified").html(data["classified"] + "%");
         var suggestions = data["suggested_features"];
         if (suggestions != null) {
             $("#suggestions").empty();
@@ -108,8 +106,9 @@ $(document).ready(function() {
                 user_message(messages[i]);
             }
         }
-        $("#performance").html(data['precision'] + '/' + data['recall'] + '/' +
-                               data['f1']);
+        $("#performance").html('<td>' + data['precision'] + '</td>' +
+                               '<td>' + data['recall'] + '</td>' +
+                               '<td>' + data['f1'] + '</td>');
 
     });
 

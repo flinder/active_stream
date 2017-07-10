@@ -109,7 +109,7 @@ class Monitor(threading.Thread):
         fp = performance['false_positive']
         fn = performance['false_negative']
         tn = performance['true_negative']
-        out = {'precision': 0, 'recall': 0, 'f1_score': 0}
+        out = {'precision': 'NA', 'recall': 'NA', 'f1_score': 'NA'}
         if tp == 0 and fp == 0:
             return out
         if tp == 0 and fn == 0:
