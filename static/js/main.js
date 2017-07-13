@@ -44,6 +44,15 @@ $(document).ready(function() {
         tweet_container.appendChild(tweet);
         var id = msg['tweet_id'];
         var guess = msg['guess'];
+        var eval_run = (msg['eval'] === 'True');
+        console.log(msg);
+        console.log(eval_run);
+        var t;
+        if(eval_run){
+            t = 'dark';
+        } else {
+            t = 'light';
+        }
         
         if(id == 'waiting') {
             tweet.textContent = "Waiting for tweets...";
@@ -52,7 +61,7 @@ $(document).ready(function() {
                 conversation : 'all',    // or all
                 cards        : 'visible',  // or hidden
                 linkColor    : '#cc0000', // default is blue
-                theme        : 'light'    // or dark
+                theme        : t    // or dark
             })
             .then (function (el) {
                 console.log("Tweet Displayed");

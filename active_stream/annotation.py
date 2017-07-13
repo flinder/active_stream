@@ -3,6 +3,8 @@ import logging
 import queue
 import pymongo
 
+import numpy as np
+
 from time import sleep
 
 class Annotator(threading.Thread):
@@ -27,7 +29,7 @@ class Annotator(threading.Thread):
     '''
 
     def __init__(self, database, train_event, annotation_response, socket, 
-                 name=None, train_threshold=1):
+                 message_queue, name=None, train_threshold=1):
         super(Annotator, self).__init__(name=name)
         self.database = database
         self.train = train_event
@@ -38,6 +40,7 @@ class Annotator(threading.Thread):
         self.annotation_response = annotation_response
         self.socket = socket
         self.annotated_text = {}
+        self.message_queue = message_queue
         self.n_trainer_triggered = 0
         self.clf_performance = {
                 'true_positive': 0,
@@ -52,6 +55,9 @@ class Annotator(threading.Thread):
         first = True
         while not self.stoprequest.isSet():
 
+            # Every third annotation is an evaluation run
+            eval_run = np.random.choice([True, False], size=1, p=[0.3,0.7])[0]
+
             # Look for work:
             not_annotated = self.database.find({'manual_relevant': None,
                                                 'probability_relevant': {
@@ -65,9 +71,13 @@ class Annotator(threading.Thread):
                     first = False
                 sleep(0.1)
                 continue
+            
+            if not eval_run:
+                work = not_annotated.sort('annotation_priority', 
+                                          pymongo.ASCENDING).limit(1)
+            else:
+                work = not_annotated.limit(1)
 
-            work = not_annotated.sort('annotation_priority', 
-                                       pymongo.ASCENDING).limit(1)
             first = True
             for status in work:
                 
@@ -82,7 +92,13 @@ class Annotator(threading.Thread):
                     id_ = str(status['id'])
                     guess = str(round(status['probability_relevant'], 3))
                     self.socket.emit('display_tweet', {'tweet_id': id_,
-                                                       'guess': guess})
+                                                       'guess': guess,
+                                                       'eval': str(eval_run)})
+                    if eval_run:
+                        p = round(status['probability_relevant'], 2)
+                        self.message_queue.put('This is an evaluation Tweet '
+                                               'I guess it is relevant with '
+                                               f'probability {p}')
                 
                 while True:
                     try:
@@ -109,7 +125,7 @@ class Annotator(threading.Thread):
                 self.annotated_text[status['text']] = out
 
                 # Evaluate classifier
-                if self.n_trainer_triggered > 0:
+                if self.n_trainer_triggered > 0 and eval_run:
                     guess = bool(round(status['probability_relevant'], 0))
                     self.clf_performance[self.evaluate_guess(guess, out)] += 1
 

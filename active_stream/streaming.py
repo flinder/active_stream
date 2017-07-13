@@ -112,7 +112,10 @@ class Streamer(threading.Thread):
 
             while True:
                 if self.stoprequest.isSet():
-                    stream.disconnect()
+                    try:
+                        stream.disconnect()
+                    except UnboundLocalError:
+                        pass
                     break
                 
                 # Get all new additions / deletions

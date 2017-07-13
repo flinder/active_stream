@@ -132,7 +132,8 @@ if __name__ == '__main__':
                                    dictionary=d)
     annotator = Annotator(name='Annotator', database=db, train_event=te, 
                           annotation_response=annot_resp, socket=socketio,
-                          train_threshold=n_before_train)
+                          train_threshold=n_before_train,
+                          message_queue=mess_queue)
     classifier = Classifier(name='Classifier', database=db, model=model_queue,
                             dictionary=d)
     monitor = Monitor(name='Monitor', database=db, socket=socketio, 
