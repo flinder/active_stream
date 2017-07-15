@@ -55,7 +55,13 @@ $(document).ready(function() {
         }
         
         if(id == 'waiting') {
-            tweet.textContent = "Waiting for tweets...";
+            tweet.classList.add("loader");
+            tweet.classList.add("center-block");
+            wait_message = document.createElement('p');
+            wait_message.setAttribute('align', 'center');
+            wait_message.classList.add('center-block');
+            wait_message.textContent = "Waiting for tweets...";
+            tweet_container.append(wait_message);
         } else {
             twttr.widgets.createTweet(id, tweet, {
                 conversation : 'all',    // or all
@@ -72,7 +78,7 @@ $(document).ready(function() {
 
     // Keyword management code
     $("form#main_input_box").submit(function(event){
-        user_message("Adding keyword. Changes might take up to 10s");
+        user_message("Adding keyword. Changes might take up to 20s");
         event.preventDefault();
         var deleteButton = 
             "<button class='delete btn btn-danger'>Remove</button>";
@@ -87,7 +93,7 @@ $(document).ready(function() {
     });
 
     $(".list_of_items").on("click", "button.delete", function(){
-        user_message("Removing keyword. Changes might take up to 10s");
+        user_message("Removing keyword. Changes might take up to 20s");
         var item = $(this).closest("li")
         var word = item.find('#word').text();
         socket.emit('remove_keyword', {data: word});
