@@ -93,6 +93,7 @@ class Streamer(threading.Thread):
         self.limit_queue = limit_queue
         self.message_queue = message_queue
         self.last_connection = 0
+        self.min_reconnect_pause = 20
 
     def run(self):
         
@@ -143,8 +144,8 @@ class Streamer(threading.Thread):
                     break
                 
                 time_since = time.time() - self.last_connection
-                if time_since < 10:
-                    time.sleep(10 - time_since)
+                if time_since < self.min_reconnect_pause:
+                    time.sleep(self.min_reconnect_pause - time_since)
                 else:
                     time.sleep(0.1)
 

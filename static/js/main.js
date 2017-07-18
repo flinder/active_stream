@@ -38,31 +38,34 @@ $(document).ready(function() {
         while (tweet_container.firstChild) {
             tweet_container.removeChild(tweet_container.firstChild);
         }
-        // Add new content
-        tweet = document.createElement('div');
-        tweet.setAttribute('id', 'tweet');
-        tweet_container.appendChild(tweet);
-        var id = msg['tweet_id'];
-        var guess = msg['guess'];
-        var eval_run = (msg['eval'] === 'True');
-        console.log(msg);
-        console.log(eval_run);
-        var t;
-        if(eval_run){
-            t = 'dark';
-        } else {
-            t = 'light';
-        }
-        
-        if(id == 'waiting') {
-            tweet.classList.add("loader");
-            tweet.classList.add("center-block");
+       
+        if(msg['tweet_id'] == 'waiting') {
+            loader = document.createElement('div');
+            loader.classList.add("loader");
+            loader.classList.add("center-block");
+            tweet_container.appendChild(loader);
             wait_message = document.createElement('p');
             wait_message.setAttribute('align', 'center');
             wait_message.classList.add('center-block');
             wait_message.textContent = "Waiting for tweets...";
             tweet_container.append(wait_message);
         } else {
+            // Add new content
+            tweet = document.createElement('div');
+            tweet.setAttribute('id', 'tweet');
+            tweet_container.appendChild(tweet);
+            var id = msg['tweet_id'];
+            var guess = msg['guess'];
+            var eval_run = (msg['eval'] === 'True');
+            console.log(msg);
+            console.log(eval_run);
+            var t;
+            if(eval_run){
+                t = 'dark';
+            } else {
+                t = 'light';
+            }
+ 
             twttr.widgets.createTweet(id, tweet, {
                 conversation : 'all',    // or all
                 cards        : 'visible',  // or hidden

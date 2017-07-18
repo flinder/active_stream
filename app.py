@@ -56,11 +56,11 @@ def test_connect():
     logging.info("Starting Annotator.")
     logging.info('Sending currently active keywords to interface')
     emit('keywords', {'keywords': list(streamer.keywords)})
-    try:
+    if annotator.is_alive():
+        logging.debug('Annotator already alive')
+        annotator.first = True
+    else:
         annotator.start()
-    except Exception as e:
-        logging.info("Received additional connection. Connecting to exsiting "+
-                     "annotator")
 
 @socketio.on('disconnect_request')
 def test_disconnect():
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     db.drop()
 
     # Set up logging
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s (%(threadName)s) %(message)s',
                     filename='debug.log'
                     ) 

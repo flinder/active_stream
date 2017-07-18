@@ -73,6 +73,9 @@ class Classifier(threading.Thread):
             if count_new > 0:
                 batch = []
                 for status in to_classify:
+                    # Ignore skipped statuses
+                    if status['manual_relevant'] == -1:
+                        continue
                     batch.append(status)
                     if len(batch) == self.batchsize:
                         self.process_batch(batch)
@@ -168,6 +171,8 @@ class Trainer(threading.Thread):
         self.clf_version = 0
         self.message_queue = message_queue
         self.streamer = stream
+        self.mif_stopwords = set([' ', '-PRON-', '.', '-', ':', ';',
+                                  '&', 'amp'])
 
     def train_model(self):
         '''
@@ -180,6 +185,9 @@ class Trainer(threading.Thread):
         # Get all manually annotated docs from db
         cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
         for d in cursor:
+            # Ignore skipped statuses
+            if d['manual_relevant'] == -1:
+                continue
             corpus.append(d['bow'])
             dict_lens.append(d['dict_size'])
             y.append(d['manual_relevant'])
@@ -195,9 +203,11 @@ class Trainer(threading.Thread):
                              reverse=True)
         mif_indices = [x[0] for x in mif_indices]
         mif = []
+        # Update list of tracked keywords
+        self.mif_stopwords.update([x.lower() for x in self.streamer.keywords])
         for id_ in mif_indices:
             word = self.dictionary.id2token[id_]
-            if word not in self.streamer.keywords:
+            if word not in self.mif_stopwords:
                 mif.append(word)
             else:
                 continue

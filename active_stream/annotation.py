@@ -48,11 +48,11 @@ class Annotator(threading.Thread):
                 'false_positive': 0,
                 'false_negative': 0
                 }
+        self.first = True
         
 
     def run(self):
         logging.info('Ready!')
-        first = True
         while not self.stoprequest.isSet():
 
             # Every third annotation is an evaluation run
@@ -66,10 +66,10 @@ class Annotator(threading.Thread):
             
             # If no work, wait and try again
             if not_annotated.count() == 0:
-                if first:
+                if self.first:
                     self.socket.emit('display_tweet', {'tweet_id': 'waiting'})
-                    first = False
-                sleep(0.1)
+                    self.first = False
+                sleep(0.05)
                 continue
             
             if not eval_run:
@@ -77,8 +77,7 @@ class Annotator(threading.Thread):
                                           pymongo.ASCENDING).limit(1)
             else:
                 work = not_annotated.limit(1)
-
-            first = True
+            
             for status in work:
                 
                 # Check if user annotated a tweet with the same text before
@@ -114,12 +113,13 @@ class Annotator(threading.Thread):
                     out = False
                     self.n_negative += 1
                 elif response == 'skip':
-                    continue
+                    out = -1
                 elif response == 'refresh':
                     continue
                     
                 else:
                     raise ValueError('Received invalid response from interface')
+                self.first = True
 
                 # Store the text in memory to not ask twice
                 self.annotated_text[status['text']] = out
