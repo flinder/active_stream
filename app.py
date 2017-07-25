@@ -123,7 +123,7 @@ if __name__ == '__main__':
 
     # Initialize Threads
     streamer = Streamer(name='Streamer', keywords=seed_keywords,
-                        credentials=credentials['coll_1'], 
+                        credentials=credentials['main_account'], 
                         tp_queue=text_processor_queue,  
                         filter_params=filters, kw_queue=keyword_queue,
                         limit_queue=lim_queue, message_queue=mess_queue)

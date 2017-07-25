@@ -3,7 +3,7 @@
 var monitor_data = null;
 $(document).ready(function() {
 
-    var limit = 60 * 3,
+    var limit = 60 * 2,
         duration = 1000,
         now = new Date(Date.now() - duration)
 
