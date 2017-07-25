@@ -39,11 +39,11 @@ class Monitor(threading.Thread):
         self.message_queue = message_queue
     
     def run(self):
-        logging.info('Ready!')
+        logging.debug('Ready!')
         while not self.stoprequest.isSet():
             self.socket.emit('db_report', {'data': self.get_stats()})
             sleep(1)
-        logging.info('Stopped')
+        logging.debug('Stopped')
 
     def get_stats(self):
 

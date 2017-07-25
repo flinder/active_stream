@@ -55,12 +55,12 @@ class Classifier(threading.Thread):
 
 
     def run(self):
-        logging.info('Ready!')
+        logging.debug('Ready!')
         first = True
         while not self.stoprequest.isSet():
 
             if not self.model_queue.empty():
-                logging.info(f'Received new model (version {self.clf_version}')
+                logging.info(f'Received new model (version {self.clf_version})')
                 self.clf = self.model_queue.get()
                 self.clf_version += 1
                 to_classify = self.database.find({'manual_relevant': None})
@@ -85,7 +85,7 @@ class Classifier(threading.Thread):
                     self.process_batch(batch)
             sleep(1)
 
-        logging.info("Stopped.")
+        logging.debug("Stopped.")
 
     def process_batch(self, batch):
         '''
@@ -133,7 +133,7 @@ class Classifier(threading.Thread):
         msg = bulk.execute() 
 
     def join(self, timeout=None):
-        logging.info("Received stoprequest")
+        logging.debug("Received stoprequest")
         self.stoprequest.set()
         super(Classifier, self).join(timeout)
 
@@ -221,19 +221,19 @@ class Trainer(threading.Thread):
 
         
     def run(self):
-        logging.info('Ready!')
+        logging.debug('Ready!')
         # Wait for first positive / negative annotation
         while not self.stoprequest.isSet():
         
             if self.trigger.isSet():
-                logging.info(f'Training new model (version {self.clf_version}')
+                logging.info(f'Training new model (version {self.clf_version})')
                 self.message_queue.put("Training new model")
                 self.train_model()
                 self.trigger.clear()
             else:
                 sleep(0.05)
 
-        logging.info('Stopped')
+        logging.debug('Stopped')
 
 
     def join(self, timeout=None):
