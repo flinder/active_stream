@@ -52,7 +52,7 @@ class Annotator(threading.Thread):
         
 
     def run(self):
-        logging.info('Ready!')
+        logging.debug('Ready!')
         while not self.stoprequest.isSet():
 
             # Every third annotation is an evaluation run
@@ -90,6 +90,8 @@ class Annotator(threading.Thread):
                         self.annotation_response.get()
                     id_ = str(status['id'])
                     guess = str(round(status['probability_relevant'], 3))
+                    logging.debug(f'Sending tweet for annotation. Id: {id_}'
+                                  f'evaluation: {eval_run}')
                     self.socket.emit('display_tweet', {'tweet_id': id_,
                                                        'guess': guess,
                                                        'eval': str(eval_run)})
@@ -102,6 +104,7 @@ class Annotator(threading.Thread):
                 while True:
                     try:
                         response = self.annotation_response.get(timeout=0.1)
+                        logging.debug(f'Received response {response}')
                         break
                     except queue.Empty as e:
                         continue
@@ -145,8 +148,7 @@ class Annotator(threading.Thread):
                     self.train.set()
                     self.n_trainer_triggered += 1
 
-                
-        logging.info('Stopped')
+        logging.debug('Stopped.')
 
     def evaluate_guess(self, guess, annotation):
         if guess and annotation:
@@ -157,8 +159,6 @@ class Annotator(threading.Thread):
             return 'false_negative'
         if guess and not annotation:
             return 'false_positive'
-
-
 
 
     def join(self, timeout=None):

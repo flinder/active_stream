@@ -119,7 +119,7 @@ class TextProcessor(threading.Thread):
 
 
     def run(self):
-        logging.info('Ready!')
+        logging.debug('Ready!')
         while not self.stoprequest.isSet():
             try:
                 status = self.tp_queue.get(True, 1)
@@ -128,7 +128,7 @@ class TextProcessor(threading.Thread):
             except queue.Empty:
                 continue
 
-        logging.info('Stopped')
+        logging.debug('Stopped')
 
     def join(self, timeout=None):
         self.stoprequest.set()

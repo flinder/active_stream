@@ -9,8 +9,9 @@ $(document).ready(function() {
     // Connect to the Socket.IO server.
     // The connection URL has the following format:
     //     http[s]://<domain>:<port>[/<namespace>]
-    var socket = io.connect(location.protocol + '//' + document.domain + ':' + 
-                            location.port);
+    //var socket = io.connect(location.protocol + '//' + document.domain + ':' + 
+    //                        location.port);
+    var socket = io.connect(null, {port: 8000, rememberTransport: false});
     var messages = []; 
 
     socket.emit('refresh');

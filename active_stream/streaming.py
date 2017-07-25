@@ -28,21 +28,26 @@ class Listener(tweepy.StreamListener):
     def on_data(self, data):
         doc = json.loads(data.strip('\n'))
         if 'limit' in doc:
+            logging.debug('Received limit message')
             self.limit_queue.put(doc)
             return True
         if 'delete' in doc:
+            logging.debug('Received delete message')
             return True
-
+        
+        logging.debug('Received status')
         status = self.filter_status(doc)
         if status is None:
+            logging.debug('Status removed by filter')
             return True
         else:
             status = self.amend_status(status)
             self.tp_queue.put(status)
+            logging.debug('Status sent to text processor')
             return True
 
     def on_error(self, status):
-        print(status)
+        logging.error(f'Received error message from API: {status}')
         return False
 
     def amend_status(self, status):
@@ -98,7 +103,7 @@ class Streamer(threading.Thread):
     def run(self):
         
         while not self.stoprequest.isSet():
-            logging.info('Ready!')
+            logging.debug('Ready!')
             time.sleep(0.05)
 
             if len(self.keywords) > 0:
@@ -129,10 +134,8 @@ class Streamer(threading.Thread):
                     for request in requests:
                         word = request['word']
                         if request['add']:
-                            logging.info(f'Adding new keyword to stream: {word}')
                             self.keywords.update([word])
                         else:
-                            logging.info(f'Removing keyword from stream: {word}')
                             self.keywords.remove(word)
 
                     # Disconnect stream and break to jump to reconnect
@@ -149,7 +152,7 @@ class Streamer(threading.Thread):
                 else:
                     time.sleep(0.1)
 
-        logging.info('Leaving stream')
+        logging.debug('Leaving stream')
 
     def join(self, timeout=None):
         self.stoprequest.set()
