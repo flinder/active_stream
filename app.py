@@ -40,22 +40,22 @@ def connected():
 def tweet_relevant():
     logging.debug('Received: tweet_relevant')
     emit('log', {'data': 'Connected'})
-    annot_resp.put('relevant')
+    data['queues']['annotation_response'].put('relevant')
 
 @socketio.on('tweet_irrelevant')
 def tweet_irrelevant():
     logging.debug('Received: tweet_irrelevant')
-    annot_resp.put('irrelevant')
+    data['queues']['annotation_response'].put('irrelevant')
 
 @socketio.on('refresh')
 def tweet_irrelevant():
     logging.debug('Received refresh')
-    annot_resp.put('refresh')
+    data['queues']['annotation_response'].put('refresh')
 
 @socketio.on('skip')
 def tweet_irrelevant():
     logging.debug('Received skip')
-    annot_resp.put('skip')
+    data['queues']['annotation_response'].put('skip')
 
 @socketio.on('connect')
 def test_connect():
@@ -78,22 +78,19 @@ def test_disconnect():
 @socketio.on('add_keyword')
 def add_keyword(message):
     logging.debug('Received request to add new keyword. Sending to Streamer.')
-    keyword_queue.put({'add': True, 'word': message['data']})
+    data['queues']['keywords'].put({'add': True, 'word': message['data']})
 
 @socketio.on('remove_keyword')
 def remove_keyword(message):
     logging.debug('Received request to remove keyword. Sending to Streamer.')
-    keyword_queue.put({'add': False, 'word': message['data']})
+    data['queues']['keywords'].put({'add': False, 'word': message['data']})
 
 if __name__ == '__main__':
 
     # =========================================================================== 
     # Config
     # =========================================================================== 
-    no_api = False                # Set to True if no API connection available
-                                  # in this case fake 'tweets' are generated
-    seed_keywords = []        # Seed keywords
-    BUF_SIZE = 1000                # Buffer size of queues
+    BUF_SIZE = 1000                # Maximum size
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
     filters = {'languages': ['en'], 'locations': []}
@@ -101,19 +98,27 @@ if __name__ == '__main__':
     # =========================================================================== 
     
     # Set up data structures
-    text_processor_queue = queue.Queue(BUF_SIZE)
-    db = MongoClient()[db][collection]
-    model_queue = queue.Queue(1)
-    annot_resp = queue.Queue(1)
-    te = threading.Event() 
-    d = corpora.Dictionary()
-    mif = queue.Queue(1)
-    keyword_queue = queue.Queue(BUF_SIZE)
-    lim_queue = queue.Queue(BUF_SIZE)
-    mess_queue = queue.Queue(BUF_SIZE)
+    data = {
+            'database': MongoClient()[db][collection],
+            'queues': {
+                'text_processing': queue.Queue(BUF_SIZE),
+                'model': queue.Queue(1),
+                'annotation_response': queue.Queue(1),
+                'most_important_features': queue.Queue(1),
+                'keywords': queue.Queue(BUF_SIZE),
+                'limit': queue.Queue(BUF_SIZE),
+                'messages': queue.Queue(BUF_SIZE)
+                },
+            'dictionary': corpora.Dictionary(),
+            'events': {
+                'train_model': threading.Event()
+                },
+            'filters': filters,
+            'socket': socketio,
+            }
 
     # Clear database
-    db.drop()
+    data['database'].drop()
 
     # Set up logging
     logging.basicConfig(level=logging.DEBUG,
@@ -130,36 +135,17 @@ if __name__ == '__main__':
     #    logging.getLogger(key).setLevel(logging.CRITICAL)
 
     # Initialize Threads
-    streamer = Streamer(name='Streamer', keywords=seed_keywords,
-                        credentials=credentials['coll_1'], 
-                        tp_queue=text_processor_queue,  
-                        filter_params=filters, kw_queue=keyword_queue,
-                        limit_queue=lim_queue, message_queue=mess_queue)
-    text_processor = TextProcessor(name='Text Processor', database=db,
-                                   tp_queue=text_processor_queue, 
-                                   dictionary=d)
-    annotator = Annotator(name='Annotator', database=db, train_event=te, 
-                          annotation_response=annot_resp, socket=socketio,
-                          train_threshold=n_before_train,
-                          message_queue=mess_queue)
-    classifier = Classifier(name='Classifier', database=db, model=model_queue,
-                            dictionary=d)
-    monitor = Monitor(name='Monitor', database=db, socket=socketio, 
-                      most_important_features=mif, stream=streamer,
-                      limit_queue=lim_queue, clf=classifier, annot=annotator,
-                      message_queue=mess_queue)
-    trainer = Trainer(name='Trainer', 
-                      clf=SGDClassifier(loss='log', penalty='elasticnet'), 
-                      database=db, model=model_queue, train_trigger=te,
-                      dictionary=d, most_important_features=mif, 
-                      message_queue = mess_queue, stream=streamer)
+    streamer = Streamer(credentials=credentials['coll_1'], data=data)
 
-    threads = [streamer, 
-               text_processor, 
-               monitor,
-               classifier,
-               trainer
-               ]
+    text_processor = TextProcessor(data)
+    annotator = Annotator(train_threshold=n_before_train, data=data)
+    classifier = Classifier(data)
+    monitor = Monitor(streamer=streamer, classifier=classifier, 
+                      annotator=annotator, data=data)
+    trainer = Trainer(data=data, streamer=streamer,
+                      clf=SGDClassifier(loss='log', penalty='elasticnet'))
+
+    threads = [streamer, text_processor, monitor, classifier, trainer]
 
     for t in threads:
         logging.info(f'Starting {t.name}...')

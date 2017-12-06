@@ -15,17 +15,18 @@ class Listener(tweepy.StreamListener):
     application, filters irrelevant ones and passes them to the text processor.
 
     Arguments:
-    tp_queue: Text processor queue 
+    stoprequest: Threading.Event, used to stop the thread
+    data: all data structures. See app.py for details
     '''
 
-    def __init__(self, tp_queue, stoprequest, kw_queue, limit_queue, 
-                 message_queue):
+
+    def __init__(self, stoprequest, data):
         super(Listener, self).__init__()
-        self.tp_queue = tp_queue
+        self.tp_queue = data['queues']['text_processing']
         self.stoprequest = stoprequest
-        self.keyword_queue = kw_queue
-        self.limit_queue = limit_queue
-        self.message_queue = message_queue
+        self.keyword_queue = data['queues']['keywords']
+        self.limit_queue = data['queues']['limit']
+        self.message_queue = data['queues']['messages']
 
     def on_data(self, data):
         doc = json.loads(data.strip('\n'))
@@ -81,25 +82,23 @@ class Streamer(threading.Thread):
     --------------
     keyword_monitor: dict, containing all keywords as `Keyword()` objects
     credentials: dict, containing Twitter API credentials.
-    tp_queue: Queue for the text processor
+    data: All data structures. See app.py for details
     name: str, name of the thread.
-    kw_queue: queue for adding keywords
     '''
-    def __init__(self, keywords, credentials, tp_queue, filter_params, 
-                 kw_queue, limit_queue, message_queue, name=None):
-        super(Streamer, self).__init__(name=name)
-        self.tp_queue = tp_queue
+    def __init__(self, credentials, data):
+        super(Streamer, self).__init__(name='Streamer')
+        self.data = data
+        self.text_processing_queue = data['queues']['text_processing']
         self.stoprequest = threading.Event()
-        self.filter_params = filter_params
-        self.keyword_queue = kw_queue
-        self.keywords = set(keywords)
-        # Set up twitter authentication
+        self.filter_params = data['filters']
+        self.keyword_queue = data['queues']['keywords']
+        self.keywords = set()
         self.auth = tweepy.OAuthHandler(credentials['consumer_key'], 
                                         credentials['consumer_secret'])
         self.auth.set_access_token(credentials['access_token'],
                                    credentials['access_token_secret'])
-        self.limit_queue = limit_queue
-        self.message_queue = message_queue
+        self.limit_queue = data['queues']['limit']
+        self.message_queue = data['queues']['messages']
         self.last_connection = 0
         self.min_reconnect_pause = 20
 
@@ -111,8 +110,7 @@ class Streamer(threading.Thread):
 
             if len(self.keywords) > 0:
                 logging.info(f'Tracking: {self.keywords}')
-                lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue,
-                               self.limit_queue, self.message_queue)
+                lis = Listener(self.stoprequest, self.data)
                 self.last_connection = time.time()
                 stream = tweepy.Stream(auth=self.auth, listener=lis)
                 stream.filter(track=list(self.keywords), **self.filter_params, 
