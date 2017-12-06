@@ -18,12 +18,14 @@ class Listener(tweepy.StreamListener):
     tp_queue: Text processor queue 
     '''
 
-    def __init__(self, tp_queue, stoprequest, kw_queue, limit_queue):
+    def __init__(self, tp_queue, stoprequest, kw_queue, limit_queue, 
+                 message_queue):
         super(Listener, self).__init__()
         self.tp_queue = tp_queue
         self.stoprequest = stoprequest
         self.keyword_queue = kw_queue
         self.limit_queue = limit_queue
+        self.message_queue = message_queue
 
     def on_data(self, data):
         doc = json.loads(data.strip('\n'))
@@ -48,6 +50,7 @@ class Listener(tweepy.StreamListener):
 
     def on_error(self, status):
         logging.error(f'Received error message from API: {status}')
+        self.message_queue.put(f'Received error message form Twitter API: {status}')
         return False
 
     def amend_status(self, status):
@@ -109,7 +112,7 @@ class Streamer(threading.Thread):
             if len(self.keywords) > 0:
                 logging.info(f'Tracking: {self.keywords}')
                 lis = Listener(self.tp_queue, self.stoprequest, self.keyword_queue,
-                               self.limit_queue)
+                               self.limit_queue, self.message_queue)
                 self.last_connection = time.time()
                 stream = tweepy.Stream(auth=self.auth, listener=lis)
                 stream.filter(track=list(self.keywords), **self.filter_params, 

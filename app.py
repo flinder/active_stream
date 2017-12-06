@@ -60,13 +60,13 @@ def tweet_irrelevant():
 @socketio.on('connect')
 def test_connect():
     global annotator
-    logging.info('Starting Annotator.')
-    logging.info('Sending currently active keywords to interface')
-    emit('keywords', {'keywords': list(streamer.keywords)})
     if annotator.is_alive():
-        logging.debug('Annotator already alive')
+        logging.debug('Annotator already alive. Refreshing')
+        emit('keywords', {'keywords': list(streamer.keywords)})
         annotator.first = True
     else:
+        logging.info('Starting Annotator.')
+        emit('keywords', {'keywords': list(streamer.keywords)})
         annotator.start()
 
 @socketio.on('disconnect_request')
@@ -116,9 +116,9 @@ if __name__ == '__main__':
     db.drop()
 
     # Set up logging
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s (%(threadName)s) %(message)s',
-                    filename='debug.log'
+                    #filename='debug.log'
                     ) 
 
 
@@ -162,13 +162,13 @@ if __name__ == '__main__':
                ]
 
     for t in threads:
-        logging.debug(f'Starting {t.name}...')
+        logging.info(f'Starting {t.name}...')
         t.start()
     try:
-        logging.debug('Starting web interface...')
+        logging.info('Starting web interface...')
         socketio.run(app, debug=False, log_output=False)
     except KeyboardInterrupt:
-        logging.debug('Keyboard Interrupt. Sending stoprequest to all threads')
+        logging.info('Keyboard Interrupt. Sending stoprequest to all threads')
         annotator.join()
         for t in threads:
             logging.debug(f'Sending stoprequest to {t}')
