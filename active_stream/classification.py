@@ -98,7 +98,7 @@ class Classifier(threading.Thread):
         corpus = [status['bow'] for status in batch] 
 
         corpus = [0] * len(batch)
-        dict_sizes = np.zeros(len(batch))
+        dict_sizes = np.zeros(len(batch), dtype=int)
         for i,s in enumerate(batch):
             corpus[i] = s['bow']
             dict_sizes[i] = s['dict_size']
@@ -107,7 +107,7 @@ class Classifier(threading.Thread):
         n_terms_model = self.clf.coef_.shape[1]
         if n_terms_model > n_terms_dict:
             n_terms_dict = n_terms_model
-
+        
         X = matutils.corpus2dense(corpus, num_docs=len(corpus),
                                   num_terms=n_terms_dict).transpose()
         
