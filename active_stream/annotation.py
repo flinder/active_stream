@@ -18,7 +18,6 @@ class Annotator(threading.Thread):
     ---------------  
     database: pymongo connection
     train_event: threading event. To communicate with Trainer
-    name: str, name of the thread.
     train_threshold: int, number of annotations (for each class) before training
         starts.
     
@@ -28,19 +27,18 @@ class Annotator(threading.Thread):
 
     '''
 
-    def __init__(self, database, train_event, annotation_response, socket, 
-                 message_queue, name=None, train_threshold=1):
-        super(Annotator, self).__init__(name=name)
-        self.database = database
-        self.train = train_event
+    def __init__(self, data, train_threshold=1):
+        super(Annotator, self).__init__(name='Annotator')
+        self.database = data['database']
+        self.train = data['events']['train_model']
         self.stoprequest = threading.Event()
         self.n_positive = False
         self.n_negative = False
         self.train_threshold = train_threshold
-        self.annotation_response = annotation_response
-        self.socket = socket
+        self.annotation_response = data['queues']['annotation_response']
+        self.socket = data['socket']
         self.annotated_text = {}
-        self.message_queue = message_queue
+        self.message_queue = data['queues']['messages']
         self.n_trainer_triggered = 0
         self.clf_performance = {
                 'true_positive': 0,

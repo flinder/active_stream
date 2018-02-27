@@ -11,9 +11,10 @@ class Monitor(threading.Thread):
 
     Arguments:
     ---------------  
-    database: pymongo connection
-    socket: websocket for client communication
-    mif_queue: Queue to receive most important features from trainer
+    data: datastructures, see app.py for details
+    streamer: threading.Thread
+    classifier: threading.Thread
+    annotator: threading.Thread
     
     Methods:
     ---------------  
@@ -21,28 +22,28 @@ class Monitor(threading.Thread):
 
     '''
 
-    def __init__(self, database, socket, most_important_features, stream, 
-                 limit_queue, clf, annot, message_queue, name=None):
-        super(Monitor, self).__init__(name=name)
-        self.database = database
+    def __init__(self, data, streamer, classifier, annotator):
+        super(Monitor, self).__init__(name='Monitor')
+        self.database = data['database']
         self.stoprequest = threading.Event()
-        self.socket = socket
-        self.mif_queue = most_important_features
-        self.limit_queue = limit_queue
+        self.socket = data['socket']
+        self.mif_queue = data['queues']['most_important_features']
+        self.limit_queue = data['queues']['limit']
         self.mif = None
-        self.streamer = stream
+        self.streamer = streamer
         self.last_count = 0
-        self.clf = clf
-        self.annotator = annot
+        self.clf = classifier
+        self.annotator = annotator
         self.counts = []
         self.missed = 0
-        self.message_queue = message_queue
+        self.message_queue = data['queues']['messages']
+        self.report_interval = 0.3
     
     def run(self):
         logging.debug('Ready!')
         while not self.stoprequest.isSet():
             self.socket.emit('db_report', {'data': self.get_stats()})
-            sleep(1)
+            sleep(self.report_interval)
         logging.debug('Stopped')
 
     def get_stats(self):
@@ -54,7 +55,8 @@ class Monitor(threading.Thread):
         self.counts.append(n_total)
         n_counts = len(self.counts)
         if n_counts > 1:
-            avg_rate = round(np.mean(np.diff(np.array(self.counts))), 1)
+            avg_rate = round(np.mean(
+                np.diff(np.array(self.counts))), 1) * 1/self.report_interval
         else:
             avg_rate = np.nan
 

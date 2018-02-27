@@ -15,22 +15,17 @@ class TextProcessor(threading.Thread):
 
     Arguments:
     --------------- 
-    tp_queue: Queue containing work (statuses) for the text processor
-    database: MongoDB connection
-    dictionary: A gensim dictionary object
-    name: str, name of the thread.
-    stopwords: list, list of stopwords to enforce
+    data: data structures see app.py for details
     '''
 
-    def __init__(self, tp_queue, database, dictionary, name=None, 
-                 stopwords=[]):
-        super(TextProcessor, self).__init__(name=name)
+    def __init__(self, data):
+        super(TextProcessor, self).__init__(name='Text Processor')
         self.parser = spacy.load('en')
-        self.tp_queue = tp_queue
-        self.database = database
+        self.tp_queue = data['queues']['text_processing']
+        self.database = data['database']
         self.stoprequest = threading.Event()
-        self.stoplist = set(stopwords)
-        self.dictionary = dictionary
+        self.stoplist = set()
+        self.dictionary = data['dictionary']
         self.repl = ['\\', '/', '-']
 
     def remove_text_by_idx(self, text, indices):

@@ -32,27 +32,22 @@ class Classifier(threading.Thread):
     Arguments:
     --------------- 
     database: MongoDB connection
-    model: Queue object for passing the model from Trainer to Classifier 
-    dictionary: A gensim dictionary object
+    data: Data structures. See app.py for details
     threshold: Threshold in predicted probability to classify to relevant /
         irrelevant.
-    name: str, name of the thread.
     batchsize: How many statues to classifiy in one batch
-    max_clf_procs: Maximum number of processors to allocate to classifier
     '''
 
-    def __init__(self, database, model, dictionary, threshold=0.5,
-                 name=None, batchsize=1000, max_clf_procs=1):
-        super(Classifier, self).__init__(name=name)
+    def __init__(self, data, threshold=0.5, batchsize=1000):
+        super(Classifier, self).__init__(name="Classifier")
         self.clf = DummyClf(threshold)
-        self.database = database
+        self.database = data['database']
         self.threshold = threshold
         self.stoprequest = threading.Event()
         self.batchsize = batchsize
-        self.model_queue = model
-        self.dictionary = dictionary
+        self.model_queue = data['queues']['model']
+        self.dictionary = data['dictionary']
         self.clf_version = 0
-
 
     def run(self):
         logging.debug('Ready!')
@@ -98,7 +93,7 @@ class Classifier(threading.Thread):
         corpus = [status['bow'] for status in batch] 
 
         corpus = [0] * len(batch)
-        dict_sizes = np.zeros(len(batch))
+        dict_sizes = np.zeros(len(batch), dtype=int)
         for i,s in enumerate(batch):
             corpus[i] = s['bow']
             dict_sizes[i] = s['dict_size']
@@ -107,7 +102,7 @@ class Classifier(threading.Thread):
         n_terms_model = self.clf.coef_.shape[1]
         if n_terms_model > n_terms_dict:
             n_terms_dict = n_terms_model
-
+        
         X = matutils.corpus2dense(corpus, num_docs=len(corpus),
                                   num_terms=n_terms_dict).transpose()
         
@@ -142,35 +137,28 @@ class Trainer(threading.Thread):
     '''
     (Re)Trains classification model.
 
-    When `ONE_POSITIVE` and `ONE_NEGATIVE` and `RUN_TRAINER` are set to True (by
-    `Annotator()`, (re-)train the model and put it into `queues['model']
 
     Arguments:
     --------------- 
-    database: pymongo connection to database
-    model: queue object to send model to classifier
+    data: dictionary of data shared data structurs. See app.py for details
     clf: A classifier object. Must contain a `fit(X, y)` method (see sk learn
         models)
-    train_trigger: threading.Event to trigger training of new model (triggered
-        by annotator)
-    dictionary: current dictionary from text processor
-    most_important_features: most important features
-
+    streamer: threading.Thread
+    
     '''
 
-    def __init__(self, database, model, clf, train_trigger, dictionary, 
-                 most_important_features, message_queue, stream, name=None):
-        super(Trainer, self).__init__(name=name)
+    def __init__(self, clf, streamer, data):
+        super(Trainer, self).__init__(name='Trainer')
         self.clf = clf
-        self.model_queue = model
-        self.trigger = train_trigger 
+        self.model_queue = data['queues']['model']
+        self.trigger = data['events']['train_model'] 
         self.stoprequest = threading.Event()
-        self.database = database
-        self.dictionary = dictionary
-        self.mif_queue = most_important_features
+        self.database = data['database']
+        self.dictionary = data['dictionary']
+        self.mif_queue = data['queues']['most_important_features']
         self.clf_version = 0
-        self.message_queue = message_queue
-        self.streamer = stream
+        self.message_queue = data['queues']['messages']
+        self.streamer = streamer
         self.mif_stopwords = set([' ', '-PRON-', '.', '-', ':', ';',
                                   '&', 'amp'])
 
