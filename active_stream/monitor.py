@@ -102,7 +102,8 @@ class Monitor(threading.Thread):
                 'f1': metrics['f1_score'],
                 'precision': metrics['precision'],
                 'recall': metrics['recall'],
-                'messages': messages
+                'messages': messages,
+                'clf_version': current_clf_version
                 }
 
     def get_clf_metrics(self):

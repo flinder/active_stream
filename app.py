@@ -1,4 +1,3 @@
-from gevent import monkey; monkey.patch_all()
 import queue 
 import logging
 import sys
@@ -25,7 +24,6 @@ async_mode = None
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode, logger=False)
-thread = None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -94,7 +92,7 @@ if __name__ == '__main__':
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
     filters = {'languages': ['en'], 'locations': []}
-    n_before_train = 1
+    n_before_train = 10
     # =========================================================================== 
     
     # Set up data structures
@@ -121,11 +119,10 @@ if __name__ == '__main__':
     data['database'].drop()
 
     # Set up logging
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s (%(threadName)s) %(message)s',
-                    #filename='debug.log'
+                    filename='debug.log'
                     ) 
-
 
     logging.info('\n'*5)
     logging.info('*'*10 + 'ACTIVE STREAM' + '*'*10)
@@ -133,6 +130,7 @@ if __name__ == '__main__':
 
     #for key in logging.Logger.manager.loggerDict:
     #    logging.getLogger(key).setLevel(logging.CRITICAL)
+    logging.getLogger('socketio').setLevel(logging.ERROR)
 
     # Initialize Threads
     streamer = Streamer(credentials=credentials['coll_1'], data=data)
@@ -150,14 +148,19 @@ if __name__ == '__main__':
     for t in threads:
         logging.info(f'Starting {t.name}...')
         t.start()
-    try:
-        logging.info('Starting web interface...')
-        socketio.run(app, debug=False, log_output=False)
-    except KeyboardInterrupt:
-        logging.info('Keyboard Interrupt. Sending stoprequest to all threads')
-        annotator.join()
-        for t in threads:
-            logging.debug(f'Sending stoprequest to {t}')
-            t.join()
-        logging.info('Done')
-        sys.exit('Main thread stopped by user.')
+    
+    logging.info('Starting web interface...')
+    socketio.run(app, debug=False, log_output=True)
+    
+    while True:
+        try:
+            print(streamer.isAlive())
+            time.sleep(0.1)
+        except KeyboardInterrupt:
+            logging.info('Interrupt. Sending stoprequest to all threads')
+            annotator.stoprequest.set()
+            for t in threads:
+                logging.debug(f'Sending stoprequest to {t}')
+                t.stoprequest.set()
+            logging.info('Done')
+            sys.exit('Main thread stopped by user.')

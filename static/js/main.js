@@ -127,7 +127,8 @@ $(document).ready(function() {
         }
         $("#performance").html('<td>' + data['precision'] + '</td>' +
                                '<td>' + data['recall'] + '</td>' +
-                               '<td>' + data['f1'] + '</td>');
+                               //'<td>' + data['f1'] + '</td>');
+                               '<td>' + data['clf_version'] + '</td>');
 
     });
 

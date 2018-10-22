@@ -15,15 +15,13 @@ class Listener(tweepy.StreamListener):
     application, filters irrelevant ones and passes them to the text processor.
 
     Arguments:
-    stoprequest: Threading.Event, used to stop the thread
     data: all data structures. See app.py for details
     '''
 
 
-    def __init__(self, stoprequest, data):
+    def __init__(self, data):
         super(Listener, self).__init__()
         self.tp_queue = data['queues']['text_processing']
-        self.stoprequest = stoprequest
         self.keyword_queue = data['queues']['keywords']
         self.limit_queue = data['queues']['limit']
         self.message_queue = data['queues']['messages']
@@ -55,9 +53,7 @@ class Listener(tweepy.StreamListener):
         return False
 
     def amend_status(self, status):
-        '''
-        Adds relevance and default prob relevant to status.
-        '''
+        '''Adds relevance and default prob relevant to status.'''
         status['classifier_relevant'] = None
         status['manual_relevant'] = None
         status['probability_relevant'] = None
@@ -67,15 +63,11 @@ class Listener(tweepy.StreamListener):
         return status
 
     def filter_status(self, status):
-        '''
-        Additional filters to remove statuses. Also converts tweepy Status
-        object to dictionary.
-        '''
+        '''Additional filters to remove statuses.'''
         return status
 
 class Streamer(threading.Thread):
-    '''
-    Connects to Twitter API and directs incoming statuses to the respective 
+    '''Connects to Twitter API and directs incoming statuses to the respective 
     queues.
 
     Arguments:
@@ -103,30 +95,31 @@ class Streamer(threading.Thread):
         self.min_reconnect_pause = 20
 
     def run(self):
-        
+        logging.debug('Ready!')
         while not self.stoprequest.isSet():
-            logging.debug('Ready!')
-            time.sleep(0.05)
 
             if len(self.keywords) > 0:
                 logging.info(f'Tracking: {self.keywords}')
-                lis = Listener(self.stoprequest, self.data)
+                lis = Listener(self.data)
                 self.last_connection = time.time()
                 stream = tweepy.Stream(auth=self.auth, listener=lis)
-                stream.filter(track=list(self.keywords), **self.filter_params, 
-                              async=True)
+                logging.debug('starting asynch stream')
+                stream.filter(track=list(self.keywords), is_async=True,
+                        **self.filter_params)
+                logging.debug('done')
                 self.last_connection = time.time()
 
             while True:
                 if self.stoprequest.isSet():
                     try:
                         stream.disconnect()
-                    except UnboundLocalError:
-                        pass
+                    except UnboundLocalError as e:
+                        logging.error(f'Error disconnecting stream: {e}')
                     break
                 
                 # Get all new additions / deletions
                 if not self.keyword_queue.empty():
+                    logging.debug('New keywords found in queue')
                     requests = []
                     while not self.keyword_queue.empty():
                         requests.append(self.keyword_queue.get())
@@ -143,6 +136,7 @@ class Streamer(threading.Thread):
                     try:
                         stream.disconnect()
                     except UnboundLocalError:
+                        logging.error('UnboundLocalError ignored')
                         pass
                     self.message_queue.put('Keyword changes applied!')
                     break
@@ -151,7 +145,7 @@ class Streamer(threading.Thread):
                 if time_since < self.min_reconnect_pause:
                     time.sleep(self.min_reconnect_pause - time_since)
                 else:
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
         logging.debug('Leaving stream')
 
