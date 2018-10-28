@@ -37,8 +37,6 @@ class Annotator(threading.Thread):
         self.train_threshold = train_threshold
         self.annotation_response = data['queues']['annotation_response']
         self.socket = data['socket']
-        logging.debug('socket ID (self): ' + str(id(self.socket)))
-        logging.debug('socket ID (data): ' + str(id(data['socket'])))
         self.annotated_text = {}
         self.message_queue = data['queues']['messages']
         self.n_trainer_triggered = 0
@@ -67,7 +65,6 @@ class Annotator(threading.Thread):
             # If no work, wait and try again
             if not_annotated.count() == 0:
                 if self.first:
-                    logging.debug('socket ID: (first emit)' + str(id(self.socket)))
                     self.socket.emit('display_tweet', {'tweet_id': 'waiting'})
                     self.first = False
                 sleep(0.05)
@@ -93,7 +90,6 @@ class Annotator(threading.Thread):
                     guess = str(round(status['probability_relevant'], 3))
                     logging.debug(f'Sending tweet for annotation. Id: {id_}'
                                   f'evaluation: {eval_run}')
-                    logging.debug('socket ID: (second emit)' + str(id(self.socket)))
                     self.socket.emit('display_tweet', {'tweet_id': id_,
                                                        'guess': guess,
                                                        'eval': str(eval_run)})
