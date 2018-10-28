@@ -104,8 +104,11 @@ class Streamer(threading.Thread):
                 self.last_connection = time.time()
                 stream = tweepy.Stream(auth=self.auth, listener=lis)
                 logging.debug('starting asynch stream')
-                stream.filter(track=list(self.keywords), is_async=True,
+                stream.filter(track=list(self.keywords), async=True,
                         **self.filter_params)
+                # Python 3.7 will require:
+                #stream.filter(track=list(self.keywords), is_async=True,
+                #        **self.filter_params)
                 logging.debug('done')
                 self.last_connection = time.time()
 
