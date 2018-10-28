@@ -103,7 +103,7 @@ class Annotator(threading.Thread):
                                                'I guess it is relevant with '
                                                f'probability {p}')
                 
-                while True:
+                while not self.stoprequest.isSet():
                     try:
                         response = self.annotation_response.get(timeout=0.1)
                         logging.debug(f'Received response {response}')
