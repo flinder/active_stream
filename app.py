@@ -19,7 +19,7 @@ from text_processing import TextProcessor
 from monitor import Monitor
 from classification import Classifier, Trainer
 
-async_mode = None
+async_mode = 'threading'
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode=async_mode, logger=False)
@@ -122,6 +122,7 @@ if __name__ == '__main__':
     logging.info('Starting Application...')
 
     logging.getLogger('socketio').setLevel(logging.ERROR)
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
     # Initialize Threads
     streamer = Streamer(credentials=credentials['coll_1'], data=data)
@@ -131,9 +132,10 @@ if __name__ == '__main__':
     monitor = Monitor(streamer=streamer, classifier=classifier, 
                       annotator=annotator, data=data)
     trainer = Trainer(data=data, streamer=streamer,
-                      clf=SGDClassifier(loss='log', penalty='elasticnet'))
+                      clf=SGDClassifier(loss='log', penalty='elasticnet', 
+                                        alpha=0.1))
 
     threads = [streamer, text_processor, monitor, classifier, trainer, 
                annotator]
 
-    socketio.run(app, debug=False, log_output=True)
+    socketio.run(app, debug=False)

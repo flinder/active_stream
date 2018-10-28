@@ -52,7 +52,6 @@ class Annotator(threading.Thread):
     def run(self):
         logging.debug('Ready!')
         while not self.stoprequest.isSet():
-
             # Every third annotation is an evaluation run
             eval_run = np.random.choice([True, False], size=1, p=[0.3,0.7])[0]
 
@@ -77,27 +76,20 @@ class Annotator(threading.Thread):
                 work = not_annotated.limit(1)
             
             for status in work:
-                
-                # Check if user annotated a tweet with the same text before
-                if status['text'] in self.annotated_text:
-                    response = self.annotated_text[status['text']]
-                else:
-                    # Empty the queue in case the user clicked twice or while
-                    # waiting
-                    if self.annotation_response.full():
-                        self.annotation_response.get()
-                    id_ = str(status['id'])
-                    guess = str(round(status['probability_relevant'], 3))
-                    logging.debug(f'Sending tweet for annotation. Id: {id_}'
-                                  f'evaluation: {eval_run}')
-                    self.socket.emit('display_tweet', {'tweet_id': id_,
-                                                       'guess': guess,
-                                                       'eval': str(eval_run)})
-                    if eval_run:
-                        p = round(status['probability_relevant'], 2)
-                        self.message_queue.put('This is an evaluation Tweet '
-                                               'I guess it is relevant with '
-                                               f'probability {p}')
+                if self.annotation_response.full():
+                    self.annotation_response.get()
+                id_ = str(status['id'])
+                guess = str(round(status['probability_relevant'], 3))
+                logging.debug(f'Sending tweet for annotation. Id: {id_}'
+                              f'evaluation: {eval_run}')
+                self.socket.emit('display_tweet', {'tweet_id': id_,
+                                                   'guess': guess,
+                                                   'eval': str(eval_run)})
+                if eval_run:
+                    p = round(status['probability_relevant'], 2)
+                    self.message_queue.put('This is an evaluation Tweet '
+                                           'I guess it is relevant with '
+                                           f'probability {p}')
                 
                 while not self.stoprequest.isSet():
                     try:
@@ -106,7 +98,7 @@ class Annotator(threading.Thread):
                         break
                     except queue.Empty as e:
                         continue
-
+                
                 if response == 'relevant':
                     out = True
                     self.n_positive += 1
@@ -117,13 +109,11 @@ class Annotator(threading.Thread):
                     out = -1
                 elif response == 'refresh':
                     continue
-                    
                 else:
-                    raise ValueError('Received invalid response from interface')
+                    logging.debug(f'Invalid response: {response}')
+                    continue
+                
                 self.first = True
-
-                # Store the text in memory to not ask twice
-                self.annotated_text[status['text']] = out
 
                 # Evaluate classifier
                 if self.n_trainer_triggered > 0 and eval_run:
@@ -131,6 +121,7 @@ class Annotator(threading.Thread):
                     self.clf_performance[self.evaluate_guess(guess, out)] += 1
 
                 # Update record in DB
+                logging.debug('updating DB')
                 msg = self.database.update(
                         {'_id': status['_id']}, 
                         {'$set': {'manual_relevant': out,
@@ -140,6 +131,7 @@ class Annotator(threading.Thread):
                         )
 
                 # Trigger trainer if necessary
+                logging.debug('triggering trainer')
                 threshold = (self.n_trainer_triggered+1) * self.train_threshold
                 if (self.n_positive > threshold and 
                     self.n_negative > threshold):

@@ -160,7 +160,7 @@ class Trainer(threading.Thread):
         self.message_queue = data['queues']['messages']
         self.streamer = streamer
         self.mif_stopwords = set([' ', '-PRON-', '.', '-', ':', ';',
-                                  '&', 'amp'])
+                                  '&', 'amp', 'RT'])
 
     def train_model(self):
         '''

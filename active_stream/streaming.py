@@ -36,15 +36,12 @@ class Listener(tweepy.StreamListener):
             logging.debug('Received delete message')
             return True
         
-        logging.debug('Received status')
         status = self.filter_status(doc)
         if status is None:
-            logging.debug('Status removed by filter')
             return True
         else:
             status = self.amend_status(status)
             self.tp_queue.put(status)
-            logging.debug('Status sent to text processor')
             return True
 
     def on_error(self, status):
