@@ -7,9 +7,8 @@ import Stemmer
 from pymongo import MongoClient
 from sklearn.linear_model import SGDClassifier
 from gensim import corpora
-from flask import Flask, render_template, session, request
-from flask_socketio import SocketIO, emit, join_room, leave_room, \
-    close_room, rooms, disconnect
+from flask import Flask, render_template
+from flask_socketio import SocketIO, emit
 
 # Custom imports
 sys.path.append('active_stream/')
@@ -46,26 +45,30 @@ def tweet_irrelevant():
     data['queues']['annotation_response'].put('irrelevant')
 
 @socketio.on('refresh')
-def tweet_irrelevant():
+def refresh():
     logging.debug('Received refresh')
     data['queues']['annotation_response'].put('refresh')
 
 @socketio.on('skip')
-def tweet_irrelevant():
+def skip():
     logging.debug('Received skip')
     data['queues']['annotation_response'].put('skip')
 
 @socketio.on('connect')
 def test_connect():
-    global annotator
-    if annotator.is_alive():
-        logging.debug('Annotator already alive. Refreshing')
-        emit('keywords', {'keywords': list(streamer.keywords)})
-        annotator.first = True
-    else:
-        logging.info('Starting Annotator.')
-        emit('keywords', {'keywords': list(streamer.keywords)})
-        annotator.start()
+    global threads
+    for t in threads:
+        if not t.isAlive():
+            t.start()
+    #global annotator
+    #if annotator.is_alive():
+    #    logging.debug('Annotator already alive. Refreshing')
+    #    emit('keywords', {'keywords': list(streamer.keywords)})
+    #    annotator.first = True
+    #else:
+    #    logging.info('Starting Annotator.')
+    #    emit('keywords', {'keywords': list(streamer.keywords)})
+    #    annotator.start()
 
 @socketio.on('disconnect_request')
 def test_disconnect():
@@ -119,7 +122,7 @@ if __name__ == '__main__':
     data['database'].drop()
 
     # Set up logging
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s (%(threadName)s) %(message)s',
                     filename='debug.log'
                     ) 
@@ -128,13 +131,10 @@ if __name__ == '__main__':
     logging.info('*'*10 + 'ACTIVE STREAM' + '*'*10)
     logging.info('Starting Application...')
 
-    #for key in logging.Logger.manager.loggerDict:
-    #    logging.getLogger(key).setLevel(logging.CRITICAL)
     logging.getLogger('socketio').setLevel(logging.ERROR)
 
     # Initialize Threads
     streamer = Streamer(credentials=credentials['coll_1'], data=data)
-
     text_processor = TextProcessor(data)
     annotator = Annotator(train_threshold=n_before_train, data=data)
     classifier = Classifier(data)
@@ -143,24 +143,8 @@ if __name__ == '__main__':
     trainer = Trainer(data=data, streamer=streamer,
                       clf=SGDClassifier(loss='log', penalty='elasticnet'))
 
-    threads = [streamer, text_processor, monitor, classifier, trainer]
+    threads = [streamer, text_processor, monitor, classifier, trainer, 
+               annotator]
 
-    for t in threads:
-        logging.info(f'Starting {t.name}...')
-        t.start()
-    
     logging.info('Starting web interface...')
     socketio.run(app, debug=False, log_output=True)
-    
-    while True:
-        try:
-            print(streamer.isAlive())
-            time.sleep(0.1)
-        except KeyboardInterrupt:
-            logging.info('Interrupt. Sending stoprequest to all threads')
-            annotator.stoprequest.set()
-            for t in threads:
-                logging.debug(f'Sending stoprequest to {t}')
-                t.stoprequest.set()
-            logging.info('Done')
-            sys.exit('Main thread stopped by user.')
