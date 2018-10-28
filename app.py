@@ -55,6 +55,9 @@ def test_connect():
     for t in threads:
         if not t.isAlive():
             t.start()
+    # Resend the 'wait' from annotator on re-connect
+    if threads[-1].isAlive(): # TODO: name threads
+        threads[-1].first = True
     emit('keywords', {'keywords': list(streamer.keywords)})
 
 @socketio.on('disconnect_request')
