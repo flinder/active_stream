@@ -28,11 +28,6 @@ socketio = SocketIO(app, async_mode=async_mode, logger=False)
 def index():
     return render_template('index.html', async_mode=socketio.async_mode)
 
-@socketio.on('connect')
-def connected():
-    logging.debug('Received connect request')
-    emit('log', {'data': 'Connected'})
-
 @socketio.on('tweet_relevant')
 def tweet_relevant():
     logging.debug('Received: tweet_relevant')
@@ -60,15 +55,7 @@ def test_connect():
     for t in threads:
         if not t.isAlive():
             t.start()
-    #global annotator
-    #if annotator.is_alive():
-    #    logging.debug('Annotator already alive. Refreshing')
-    #    emit('keywords', {'keywords': list(streamer.keywords)})
-    #    annotator.first = True
-    #else:
-    #    logging.info('Starting Annotator.')
-    #    emit('keywords', {'keywords': list(streamer.keywords)})
-    #    annotator.start()
+    emit('keywords', {'keywords': list(streamer.keywords)})
 
 @socketio.on('disconnect_request')
 def test_disconnect():
@@ -146,5 +133,4 @@ if __name__ == '__main__':
     threads = [streamer, text_processor, monitor, classifier, trainer, 
                annotator]
 
-    logging.info('Starting web interface...')
     socketio.run(app, debug=False, log_output=True)
