@@ -84,7 +84,7 @@ if __name__ == '__main__':
     BUF_SIZE = 1000                # Maximum size
     db = 'active_stream'          # Mongo Database name
     collection = 'dump'           # Mongo db collection name
-    filters = {'languages': ['en'], 'locations': []}
+    filters = {'languages': ['en']}
     n_before_train = 10
     # =========================================================================== 
     
@@ -125,7 +125,9 @@ if __name__ == '__main__':
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
     # Initialize Threads
-    streamer = Streamer(credentials=credentials['coll_1'], data=data)
+    streamer = Streamer(credentials_track=credentials['coll_1'],
+                        credentials_sample=credentials['main_account'], 
+                        data=data)
     text_processor = TextProcessor(data)
     annotator = Annotator(train_threshold=n_before_train, data=data)
     classifier = Classifier(data)
