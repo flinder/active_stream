@@ -109,8 +109,12 @@ class Classifier(threading.Thread):
         if n_terms_dict > n_terms_model:
             X = X[:, :n_terms_model]
         
-        probs = self.clf.predict_proba(X)[:, 1]
-
+        try:
+            probs = self.clf.predict_proba(X)[:, 1]
+        except ValueError:
+            print(X.shape)
+            print(n_terms_model)
+        
         bulk = self.database.initialize_unordered_bulk_op()
         for status, prob in zip(batch, probs):  
             ap = (prob - 0.5)**2
@@ -171,14 +175,25 @@ class Trainer(threading.Thread):
         dict_lens = []
         y = []
         # Get all manually annotated docs from db
-        cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
+        #cursor = self.database.find({'manual_relevant': {'$ne': None}}) 
+
+        # First get all relevant tweets
+        cursor = self.database.find({'manual_relevant': True}) 
         for d in cursor:
             # Ignore skipped statuses
             if d['manual_relevant'] == -1:
                 continue
             corpus.append(d['bow'])
             dict_lens.append(d['dict_size'])
-            y.append(d['manual_relevant'])
+            y.append(True)
+        
+        samp_size = len(y)
+        cursor = (self.database.find({'manual_relevant': False})
+                               .limit(samp_size)) #TODO: This should be random sample
+        for d in cursor:
+            corpus.append(d['bow'])
+            dict_lens.append(d['dict_size'])
+            y.append(False)
 
         X = matutils.corpus2dense(corpus, num_docs=len(corpus),
                                   num_terms=max(dict_lens)).transpose()

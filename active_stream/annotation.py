@@ -132,9 +132,9 @@ class Annotator(threading.Thread):
 
                 # Trigger trainer if necessary
                 logging.debug('triggering trainer')
-                threshold = (self.n_trainer_triggered+1) * self.train_threshold
-                if (self.n_positive > threshold and 
-                    self.n_negative > threshold):
+                #threshold = (self.n_trainer_triggered+1) * self.train_threshold
+                if (self.n_positive > self.train_threshold): #and 
+                    #self.n_negative > threshold):
                     self.train.set()
                     self.n_trainer_triggered += 1
 

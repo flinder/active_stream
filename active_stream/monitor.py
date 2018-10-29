@@ -49,7 +49,8 @@ class Monitor(threading.Thread):
     def get_stats(self):
 
         d = self.database
-        n_total = d.count()
+        n_total = d.count({'sample': 'track'})
+        n_sample = d.count({'sample': 'sample'})
         
         # Calculate average per second rate for last minute
         self.counts.append(n_total)
@@ -71,7 +72,8 @@ class Monitor(threading.Thread):
         if not self.mif_queue.empty():
             self.mif = self.mif_queue.get()
             
-        n_annotated = d.count({'manual_relevant': {'$ne': None}})
+        n_annotated = d.count({'manual_relevant': {'$ne': None}, 
+                               'sample': 'track'})
         current_clf_version = self.clf.clf_version
         n_classified = d.count({'probability_relevant': {'$ne': None},
                                 'clf_version': {'$gte': current_clf_version}})

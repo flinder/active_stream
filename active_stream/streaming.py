@@ -56,12 +56,26 @@ class Listener(tweepy.StreamListener):
         status['probability_relevant'] = None
         status['annotation_priority'] = 0
         status['clf_version'] = -1
+        status['sample'] = 'track'
 
         return status
 
     def filter_status(self, status):
         '''Additional filters to remove statuses.'''
         return status
+
+class SampleListener(Listener):
+    def amend_status(self, status):
+        '''Adds relevance and default prob relevant to status.'''
+        status['classifier_relevant'] = False
+        status['manual_relevant'] = False
+        status['probability_relevant'] = 0
+        status['annotation_priority'] = 0
+        status['clf_version'] = -1
+        status['sample'] = 'sample'
+
+        return status
+
 
 class Streamer(threading.Thread):
     '''Connects to Twitter API and directs incoming statuses to the respective 
@@ -74,7 +88,7 @@ class Streamer(threading.Thread):
     data: All data structures. See app.py for details
     name: str, name of the thread.
     '''
-    def __init__(self, credentials, data):
+    def __init__(self, credentials_track, credentials_sample, data):
         super(Streamer, self).__init__(name='Streamer')
         self.data = data
         self.text_processing_queue = data['queues']['text_processing']
@@ -82,10 +96,14 @@ class Streamer(threading.Thread):
         self.filter_params = data['filters']
         self.keyword_queue = data['queues']['keywords']
         self.keywords = set()
-        self.auth = tweepy.OAuthHandler(credentials['consumer_key'], 
-                                        credentials['consumer_secret'])
-        self.auth.set_access_token(credentials['access_token'],
-                                   credentials['access_token_secret'])
+        self.auth_track = tweepy.OAuthHandler(credentials_track['consumer_key'], 
+                                        credentials_track['consumer_secret'])
+        self.auth_track.set_access_token(credentials_track['access_token'],
+                                   credentials_track['access_token_secret'])
+        self.auth_sample = tweepy.OAuthHandler(credentials_sample['consumer_key'], 
+                                        credentials_sample['consumer_secret'])
+        self.auth_sample.set_access_token(credentials_sample['access_token'],
+                                   credentials_sample['access_token_secret'])
         self.limit_queue = data['queues']['limit']
         self.message_queue = data['queues']['messages']
         self.last_connection = 0
@@ -94,15 +112,20 @@ class Streamer(threading.Thread):
     def run(self):
         logging.debug('Ready!')
         while not self.stoprequest.isSet():
-
             if len(self.keywords) > 0:
                 logging.info(f'Tracking: {self.keywords}')
                 lis = Listener(self.data)
+                lis_sample = SampleListener(self.data)
                 self.last_connection = time.time()
-                stream = tweepy.Stream(auth=self.auth, listener=lis)
-                logging.debug('starting asynch stream')
+                stream = tweepy.Stream(auth=self.auth_track, 
+                                       listener=lis)
+                sample_stream = tweepy.Stream(auth=self.auth_sample, 
+                                              listener=lis_sample)
+                logging.debug('starting track stream')
                 stream.filter(track=list(self.keywords), async=True,
-                        **self.filter_params)
+                              **self.filter_params)
+                logging.debug('starting sample stream')
+                sample_stream.sample(async=True, **self.filter_params)
                 # Python 3.7 will require:
                 #stream.filter(track=list(self.keywords), is_async=True,
                 #        **self.filter_params)
@@ -113,6 +136,7 @@ class Streamer(threading.Thread):
                 if self.stoprequest.isSet():
                     try:
                         stream.disconnect()
+                        sample_stream.disconnect()
                     except UnboundLocalError as e:
                         logging.error(f'Error disconnecting stream: {e}')
                     break
