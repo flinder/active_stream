@@ -29,11 +29,9 @@ class Listener(tweepy.StreamListener):
     def on_data(self, data):
         doc = json.loads(data.strip('\n'))
         if 'limit' in doc:
-            logging.debug('Received limit message')
             self.limit_queue.put(doc)
             return True
         if 'delete' in doc:
-            logging.debug('Received delete message')
             return True
         
         status = self.filter_status(doc)
@@ -62,6 +60,11 @@ class Listener(tweepy.StreamListener):
 
     def filter_status(self, status):
         '''Additional filters to remove statuses.'''
+        try:
+            if status['possibly_sensitive']:
+                return None
+        except KeyError:
+            pass
         return status
 
 class SampleListener(Listener):
@@ -125,7 +128,8 @@ class Streamer(threading.Thread):
                 stream.filter(track=list(self.keywords), async=True,
                               **self.filter_params)
                 logging.debug('starting sample stream')
-                sample_stream.sample(async=True, **self.filter_params)
+                sample_stream.sample(async=True, stall_warnings=True, 
+                                     **self.filter_params)
                 # Python 3.7 will require:
                 #stream.filter(track=list(self.keywords), is_async=True,
                 #        **self.filter_params)
