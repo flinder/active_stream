@@ -134,8 +134,8 @@ if __name__ == '__main__':
     monitor = Monitor(streamer=streamer, classifier=classifier, 
                       annotator=annotator, data=data)
     trainer = Trainer(data=data, streamer=streamer,
-                      clf=SGDClassifier(loss='log', penalty='elasticnet', 
-                                        alpha=0.1))
+                      clf=SGDClassifier(loss='log', penalty='l1', 
+                                        alpha=0.001))
 
     threads = [streamer, text_processor, monitor, classifier, trainer, 
                annotator]

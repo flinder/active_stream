@@ -111,6 +111,7 @@ $(document).ready(function() {
         $("#total").html(data["total_count"]);
         $("#missed").html(data["missed"]);
         $("#annotated").html(data["annotated"]);
+        $("#classified").html(data["classified"]);
         var suggestions = data["suggested_features"];
         if (suggestions != null) {
             $("#suggestions").empty();
@@ -125,10 +126,10 @@ $(document).ready(function() {
                 user_message(messages[i]);
             }
         }
-        $("#performance").html('<td>' + data['precision'] + '</td>' +
-                               '<td>' + data['recall'] + '</td>' +
-                               //'<td>' + data['f1'] + '</td>');
-                               '<td>' + data['clf_version'] + '</td>');
+        //$("#performance").html('<td>' + data['precision'] + '</td>' +
+        //                       '<td>' + data['recall'] + '</td>' +
+        //                       //'<td>' + data['f1'] + '</td>');
+        //                       '<td>' + data['clf_version'] + '</td>');
 
     });
 

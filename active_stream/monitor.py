@@ -75,7 +75,7 @@ class Monitor(threading.Thread):
         n_annotated = d.count({'manual_relevant': {'$ne': None}, 
                                'sample': 'track'})
         current_clf_version = self.clf.clf_version
-        n_classified = d.count({'probability_relevant': {'$ne': None},
+        n_classified = d.count({'classifier_relevant': True,
                                 'clf_version': {'$gte': current_clf_version}})
         try:
             #perc_classified = round(n_classified / n_total, 1)

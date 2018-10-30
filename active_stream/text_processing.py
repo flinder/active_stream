@@ -20,7 +20,7 @@ class TextProcessor(threading.Thread):
 
     def __init__(self, data):
         super(TextProcessor, self).__init__(name='Text Processor')
-        self.parser = spacy.load('en')
+        self.parser = spacy.load('en', disable=['parser', 'ner', 'tagger'])
         self.tp_queue = data['queues']['text_processing']
         self.database = data['database']
         self.stoprequest = threading.Event()
