@@ -99,7 +99,14 @@ class Classifier(threading.Thread):
             dict_sizes[i] = s['dict_size']
 
         n_terms_dict = max(dict_sizes)
-        n_terms_model = self.clf.coef_.shape[1]
+
+        try:
+            n_terms_model = self.clf.coef_.shape[1]
+        except IndexError:
+            logging.debug('Weird coef shape dimensions')
+            n_terms_model = len(self.clf.coef_)
+        #logging.debug(f'n_coefs: {n_terms_model}')
+
         if n_terms_model > n_terms_dict:
             n_terms_dict = n_terms_model
         
@@ -108,17 +115,14 @@ class Classifier(threading.Thread):
         
         if n_terms_dict > n_terms_model:
             X = X[:, :n_terms_model]
-        
-        try:
-            probs = self.clf.predict_proba(X)[:, 1]
-        except ValueError:
-            print(X.shape)
-            print(n_terms_model)
-        
+
+        #logging.debug(f'X.shape: {X.shape}') 
+        probs = self.clf.predict_proba(X)[:, 1]
+       
         bulk = self.database.initialize_unordered_bulk_op()
         for status, prob in zip(batch, probs):  
             ap = (prob - 0.5)**2
-            if prob < 0.5:
+            if prob <= 0.5:
                 clf_rel = False
             else:
                 clf_rel = True
