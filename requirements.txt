@@ -1,9 +1,0 @@
-python=3.6
-flask-socketio
-tweepy
-numpy
-pymongo
-scikit-learn
-gensim
-spacy (+ english language files `python -m spacy download en`)
-gevent

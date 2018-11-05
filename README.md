@@ -31,8 +31,7 @@ co-occurence in the tweet text.
 
 ## Dependencies
 
-* Python 3.6
-* Non-standard Python modules: [tweepy](http://www.tweepy.org/), [spaCy](https://spacy.io/) and [gensim](https://radimrehurek.com/gensim/)
+* See `conda_environment.yml` for all dependencies in the conda package manager format
 * English language model for spaCy (`$ python -m spacy download en`)
 * Mongodb (listening on `localhost:27017` which is default setting when
     installing mongodb)
